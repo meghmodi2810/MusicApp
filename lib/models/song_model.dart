@@ -44,59 +44,128 @@ class SongModel {
     // Get the best quality download URL
     String? streamUrl;
     final downloadUrls = json['downloadUrl'];
-    if (downloadUrls != null && downloadUrls is List && downloadUrls.isNotEmpty) {
-      // Get highest quality (320kbps)
-      final highQuality = downloadUrls.lastWhere(
-        (url) => url['quality'] == '320kbps',
-        orElse: () => downloadUrls.last,
-      );
-      streamUrl = highQuality['url'] ?? highQuality['link'];
+    
+    // Debug: print the downloadUrl structure
+    print('JioSaavn downloadUrl type: ${downloadUrls.runtimeType}');
+    print('JioSaavn downloadUrl: $downloadUrls');
+    
+    if (downloadUrls != null) {
+      if (downloadUrls is List && downloadUrls.isNotEmpty) {
+        // Handle array format: [{"quality": "320kbps", "url": "..."}]
+        try {
+          final highQuality = downloadUrls.lastWhere(
+            (url) => url['quality'] == '320kbps',
+            orElse: () => downloadUrls.last,
+          );
+          streamUrl = highQuality['url'] ?? highQuality['link'];
+        } catch (e) {
+          // If list items are strings, take the last one (highest quality)
+          if (downloadUrls.first is String) {
+            streamUrl = downloadUrls.last as String;
+          }
+        }
+      } else if (downloadUrls is String) {
+        // Handle string format directly
+        streamUrl = downloadUrls;
+      } else if (downloadUrls is Map) {
+        // Handle map format: {"320kbps": "url"}
+        streamUrl = downloadUrls['320kbps'] ?? 
+                    downloadUrls['160kbps'] ?? 
+                    downloadUrls['96kbps'] ??
+                    downloadUrls.values.last;
+      }
+    }
+    
+    // Fallback: check for other URL fields
+    if (streamUrl == null || streamUrl.isEmpty) {
+      streamUrl = json['url'] ?? json['media_url'] ?? json['perma_url'];
     }
 
-    // Get album art
+    print('Final streamUrl: $streamUrl');
+
+    // Get album art - handle both array and string formats
     String? albumArt;
     String? albumArtHigh;
     final images = json['image'];
-    if (images != null && images is List && images.isNotEmpty) {
-      albumArt = images.firstWhere(
-        (img) => img['quality'] == '150x150',
-        orElse: () => images.first,
-      )['url'] ?? images.first['link'];
-      
-      albumArtHigh = images.lastWhere(
-        (img) => img['quality'] == '500x500',
-        orElse: () => images.last,
-      )['url'] ?? images.last['link'];
+    
+    if (images != null) {
+      if (images is List && images.isNotEmpty) {
+        try {
+          final firstImg = images.firstWhere(
+            (img) => img is Map && img['quality'] == '150x150',
+            orElse: () => images.first,
+          );
+          albumArt = firstImg is Map ? (firstImg['url'] ?? firstImg['link']) : firstImg.toString();
+          
+          final lastImg = images.lastWhere(
+            (img) => img is Map && img['quality'] == '500x500',
+            orElse: () => images.last,
+          );
+          albumArtHigh = lastImg is Map ? (lastImg['url'] ?? lastImg['link']) : lastImg.toString();
+        } catch (e) {
+          if (images.first is String) {
+            albumArt = images.first;
+            albumArtHigh = images.last;
+          }
+        }
+      } else if (images is String) {
+        albumArt = images;
+        albumArtHigh = images.replaceAll('150x150', '500x500').replaceAll('50x50', '500x500');
+      }
     }
 
     // Get artist names
     String artistName = 'Unknown Artist';
     final artists = json['artists'];
     if (artists != null) {
-      if (artists['primary'] != null && artists['primary'] is List) {
+      if (artists is Map && artists['primary'] != null && artists['primary'] is List) {
         artistName = (artists['primary'] as List)
-            .map((a) => a['name'])
+            .map((a) => a is Map ? a['name'] : a.toString())
             .join(', ');
       } else if (artists is String) {
         artistName = artists;
+      } else if (artists is List) {
+        artistName = artists.map((a) => a is Map ? a['name'] : a.toString()).join(', ');
       }
     }
     if (artistName.isEmpty || artistName == 'Unknown Artist') {
-      artistName = json['primaryArtists'] ?? json['artist'] ?? 'Unknown Artist';
+      artistName = json['primaryArtists'] ?? json['artist'] ?? json['singers'] ?? 'Unknown Artist';
+    }
+
+    // Get album name
+    String albumName = 'Unknown Album';
+    final album = json['album'];
+    if (album != null) {
+      if (album is Map) {
+        albumName = album['name'] ?? album['title'] ?? 'Unknown Album';
+      } else if (album is String) {
+        albumName = album;
+      }
+    }
+
+    // Get duration - handle both int and string
+    int durationSeconds = 0;
+    final duration = json['duration'];
+    if (duration != null) {
+      if (duration is int) {
+        durationSeconds = duration;
+      } else if (duration is String) {
+        durationSeconds = int.tryParse(duration) ?? 0;
+      }
     }
 
     return SongModel(
       id: json['id']?.toString() ?? '',
-      title: _cleanText(json['name'] ?? json['title'] ?? 'Unknown'),
+      title: _cleanText(json['name'] ?? json['title'] ?? json['song'] ?? 'Unknown'),
       artist: _cleanText(artistName),
-      album: _cleanText(json['album']?['name'] ?? json['album'] ?? 'Unknown Album'),
+      album: _cleanText(albumName),
       albumArt: albumArt,
       albumArtHigh: albumArtHigh,
       streamUrl: streamUrl,
-      duration: Duration(seconds: json['duration'] ?? 0),
+      duration: Duration(seconds: durationSeconds),
       isLocal: false,
-      artistId: json['artists']?['primary']?[0]?['id']?.toString(),
-      albumId: json['album']?['id']?.toString(),
+      artistId: json['artists']?['primary']?[0]?['id']?.toString() ?? json['artistId']?.toString(),
+      albumId: json['album']?['id']?.toString() ?? json['albumId']?.toString(),
     );
   }
 
