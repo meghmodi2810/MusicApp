@@ -280,7 +280,7 @@ class PixelAvatar extends StatelessWidget {
         border: Border.all(color: PixelTheme.pixelBorder, width: 3),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             offset: const Offset(3, 3),
             blurRadius: 0,
           ),
@@ -440,7 +440,7 @@ class PixelSongTile extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         margin: const EdgeInsets.symmetric(vertical: 4),
         decoration: PixelTheme.pixelBox(
-          color: isPlaying ? PixelTheme.primary.withOpacity(0.2) : PixelTheme.surface,
+          color: isPlaying ? PixelTheme.primary.withValues(alpha: 0.2) : PixelTheme.surface,
           borderColor: isPlaying ? PixelTheme.primary : PixelTheme.pixelBorder,
         ),
         child: Row(

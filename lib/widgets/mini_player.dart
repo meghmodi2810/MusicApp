@@ -38,13 +38,13 @@ class MiniPlayer extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [
                   const Color(0xFF2a2a2a),
-                  const Color(0xFF1a1a1a).withOpacity(0.95),
+                  const Color(0xFF1a1a1a).withValues(alpha: 0.95),
                 ],
               ),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),

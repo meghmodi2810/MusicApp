@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import '../models/song_model.dart';
 import '../services/music_api_service.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/song_card.dart';
 import '../widgets/song_tile.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -55,10 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    final primaryColor = themeProvider.primaryColor;
+    
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _loadData,
-        color: const Color(0xFF1DB954),
+        color: primaryColor,
         child: CustomScrollView(
           slivers: [
             // Gradient App Bar
@@ -68,14 +75,19 @@ class _HomeScreenState extends State<HomeScreen> {
               pinned: false,
               backgroundColor: Colors.transparent,
               flexibleSpace: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFF1a3a2a),
-                      Color(0xFF0d0d0d),
-                    ],
+                    colors: isDark
+                        ? [
+                            primaryColor.withValues(alpha: 0.3),
+                            themeProvider.backgroundColor,
+                          ]
+                        : [
+                            primaryColor.withValues(alpha: 0.1),
+                            themeProvider.backgroundColor,
+                          ],
                   ),
                 ),
                 child: FlexibleSpaceBar(
@@ -85,20 +97,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF1DB954), Color(0xFF1ed760)],
+                          gradient: LinearGradient(
+                            colors: [primaryColor, primaryColor.withValues(alpha: 0.8)],
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.music_note_rounded, color: Colors.white, size: 20),
+                        child: Icon(
+                          Icons.music_note_rounded,
+                          color: isDark ? Colors.black : Colors.white,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 12),
-                      const Text(
+                      Text(
                         'Melodify',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 24,
-                          color: Colors.white,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
                     ],
@@ -107,12 +123,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.notifications_outlined),
+                  icon: Icon(
+                    Icons.notifications_outlined,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   onPressed: () {},
                 ),
                 IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  onPressed: () {},
+                  icon: Icon(
+                    Icons.settings_outlined,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    );
+                  },
                 ),
                 const SizedBox(width: 8),
               ],
@@ -124,10 +151,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: Text(
                   _getGreeting(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
               ),
@@ -149,33 +176,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: _quickPicks.length,
                   itemBuilder: (context, index) {
                     final pick = _quickPicks[index];
-                    return _buildQuickPickCard(pick);
+                    return _buildQuickPickCard(pick, isDark);
                   },
                 ),
               ),
             ),
 
             // Trending Section
-            _buildSectionHeader('🔥 Trending Now', () {}),
+            _buildSectionHeader('🔥 Trending Now', () {}, isDark),
             _isLoading
-                ? _buildShimmerCards()
+                ? _buildShimmerCards(isDark)
                 : _buildHorizontalSongList(_trendingSongs),
 
             // New Releases
-            _buildSectionHeader('✨ New Releases', () {}),
+            _buildSectionHeader('✨ New Releases', () {}, isDark),
             _isLoading
-                ? _buildShimmerCards()
+                ? _buildShimmerCards(isDark)
                 : _buildHorizontalSongList(_newReleases),
 
             // Chill Vibes
-            _buildSectionHeader('🎧 Chill Vibes', () {}),
+            _buildSectionHeader('🎧 Chill Vibes', () {}, isDark),
             _isLoading
-                ? _buildShimmerCards()
+                ? _buildShimmerCards(isDark)
                 : _buildHorizontalSongList(_chillVibes),
 
             // Top Songs List
             if (_trendingSongs.isNotEmpty) ...[
-              _buildSectionHeader('📈 Top Charts', () {}),
+              _buildSectionHeader('📈 Top Charts', () {}, isDark),
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
@@ -202,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickPickCard(Map<String, dynamic> pick) {
+  Widget _buildQuickPickCard(Map<String, dynamic> pick, bool isDark) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -210,8 +237,14 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1a1a1a),
+            color: isDark ? const Color(0xFF1a1a1a) : Colors.white,
             borderRadius: BorderRadius.circular(8),
+            boxShadow: isDark ? null : [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 5,
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -231,8 +264,8 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Text(
                   pick['title'],
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -247,7 +280,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  SliverToBoxAdapter _buildSectionHeader(String title, VoidCallback onSeeAll) {
+  SliverToBoxAdapter _buildSectionHeader(String title, VoidCallback onSeeAll, bool isDark) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 16, 12),
@@ -256,18 +290,18 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
             TextButton(
               onPressed: onSeeAll,
-              child: const Text(
+              child: Text(
                 'See all',
                 style: TextStyle(
-                  color: Color(0xFF1DB954),
+                  color: themeProvider.primaryColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -300,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  SliverToBoxAdapter _buildShimmerCards() {
+  SliverToBoxAdapter _buildShimmerCards(bool isDark) {
     return SliverToBoxAdapter(
       child: SizedBox(
         height: 200,
@@ -312,12 +346,12 @@ class _HomeScreenState extends State<HomeScreen> {
             return Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Shimmer.fromColors(
-                baseColor: const Color(0xFF1a1a1a),
-                highlightColor: const Color(0xFF2a2a2a),
+                baseColor: isDark ? const Color(0xFF1a1a1a) : Colors.grey[300]!,
+                highlightColor: isDark ? const Color(0xFF2a2a2a) : Colors.grey[100]!,
                 child: Container(
                   width: 150,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1a1a1a),
+                    color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[300],
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/song_model.dart';
 import '../providers/music_player_provider.dart';
+import '../providers/theme_provider.dart';
 import '../screens/player_screen.dart';
 
 class SongCard extends StatelessWidget {
@@ -17,6 +18,10 @@ class SongCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    final primaryColor = themeProvider.primaryColor;
+    
     return GestureDetector(
       onTap: () {
         context.read<MusicPlayerProvider>().playSong(song, playlist: playlist);
@@ -25,7 +30,7 @@ class SongCard extends StatelessWidget {
           MaterialPageRoute(builder: (context) => const PlayerScreen()),
         );
       },
-      child: Container(
+      child: SizedBox(
         width: 150,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,7 +45,7 @@ class SongCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.15),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
@@ -53,19 +58,31 @@ class SongCard extends StatelessWidget {
                             imageUrl: song.albumArt!,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
-                              color: const Color(0xFF1a1a1a),
-                              child: const Center(
-                                child: Icon(Icons.music_note, color: Colors.white24, size: 40),
+                              color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
+                              child: Center(
+                                child: Icon(
+                                  Icons.music_note,
+                                  color: isDark ? Colors.white24 : Colors.grey[400],
+                                  size: 40,
+                                ),
                               ),
                             ),
                             errorWidget: (context, url, error) => Container(
-                              color: const Color(0xFF1a1a1a),
-                              child: const Icon(Icons.music_note, color: Colors.white24, size: 40),
+                              color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
+                              child: Icon(
+                                Icons.music_note,
+                                color: isDark ? Colors.white24 : Colors.grey[400],
+                                size: 40,
+                              ),
                             ),
                           )
                         : Container(
-                            color: const Color(0xFF1a1a1a),
-                            child: const Icon(Icons.music_note, color: Colors.white24, size: 40),
+                            color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
+                            child: Icon(
+                              Icons.music_note,
+                              color: isDark ? Colors.white24 : Colors.grey[400],
+                              size: 40,
+                            ),
                           ),
                   ),
                 ),
@@ -77,19 +94,19 @@ class SongCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1DB954),
+                      color: primaryColor,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF1DB954).withOpacity(0.4),
+                          color: primaryColor.withValues(alpha: 0.4),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.play_arrow_rounded,
-                      color: Colors.black,
+                      color: isDark ? Colors.black : Colors.white,
                       size: 28,
                     ),
                   ),
@@ -100,8 +117,8 @@ class SongCard extends StatelessWidget {
             // Song Title
             Text(
               song.title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -113,7 +130,7 @@ class SongCard extends StatelessWidget {
             Text(
               song.artist,
               style: TextStyle(
-                color: Colors.grey[500],
+                color: isDark ? Colors.grey[500] : Colors.grey[600],
                 fontSize: 12,
               ),
               maxLines: 1,

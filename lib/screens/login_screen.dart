@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../theme/pixel_theme.dart';
-import '../widgets/pixel_widgets.dart';
+import '../providers/theme_provider.dart';
 import 'register_screen.dart';
-import 'main_screen.dart';
+import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,8 +34,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success && mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const MainScreen()),
+          (route) => false,
         );
       }
     }
@@ -44,17 +44,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    final primaryColor = themeProvider.primaryColor;
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              PixelTheme.coalBlack,
-              PixelTheme.stoneGray.withOpacity(0.8),
-              PixelTheme.coalBlack,
-            ],
+            colors: isDark 
+                ? [
+                    themeProvider.backgroundColor,
+                    themeProvider.cardColor.withValues(alpha: 0.8),
+                    themeProvider.backgroundColor,
+                  ]
+                : [
+                    Colors.white,
+                    Colors.grey[100]!,
+                    Colors.white,
+                  ],
           ),
         ),
         child: SafeArea(
@@ -66,22 +76,35 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Pixelated Logo/Title
+                    // Logo/Title
                     Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: PixelTheme.pixelCard(color: PixelTheme.primary),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
                       child: Column(
                         children: [
                           Icon(
                             Icons.music_note,
                             size: 60,
-                            color: PixelTheme.coalBlack,
+                            color: isDark ? Colors.black : Colors.white,
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'PIXEL BEATS',
-                            style: PixelTheme.headingMedium.copyWith(
-                              color: PixelTheme.coalBlack,
+                            'MELODIFY',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.black : Colors.white,
+                              letterSpacing: 2,
                             ),
                           ),
                         ],
@@ -92,26 +115,52 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Login Card
                     Container(
                       constraints: const BoxConstraints(maxWidth: 400),
-                      decoration: PixelTheme.pixelCard(),
+                      decoration: BoxDecoration(
+                        color: isDark ? themeProvider.cardColor : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'LOGIN',
-                            style: PixelTheme.headingSmall,
+                            'Welcome Back',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Sign in to continue',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 24),
                           
                           // Username/Email Field
-                          PixelTextField(
-                            label: 'Username or Email',
+                          TextFormField(
                             controller: _usernameController,
-                            prefixIcon: Icons.person,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Username or Email',
+                              prefixIcon: Icon(Icons.person, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                            ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Required';
+                                return 'Please enter your username or email';
                               }
                               return null;
                             },
@@ -119,24 +168,26 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 16),
                           
                           // Password Field
-                          PixelTextField(
-                            label: 'Password',
+                          TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            prefixIcon: Icons.lock,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                                color: PixelTheme.textSecondary,
-                                size: 20,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: Icon(Icons.lock, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                                onPressed: () {
+                                  setState(() => _obscurePassword = !_obscurePassword);
+                                },
                               ),
-                              onPressed: () {
-                                setState(() => _obscurePassword = !_obscurePassword);
-                              },
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Required';
+                                return 'Please enter your password';
                               }
                               return null;
                             },
@@ -151,15 +202,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                   padding: const EdgeInsets.only(bottom: 16),
                                   child: Container(
                                     padding: const EdgeInsets.all(12),
-                                    decoration: PixelTheme.pixelBox(
-                                      color: PixelTheme.danger.withOpacity(0.2),
-                                      borderColor: PixelTheme.danger,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                                     ),
                                     child: Text(
                                       auth.error!,
-                                      style: PixelTheme.bodyMedium.copyWith(
-                                        color: PixelTheme.danger,
-                                      ),
+                                      style: const TextStyle(color: Colors.red),
                                       textAlign: TextAlign.center,
                                     ),
                                   ),
@@ -172,12 +222,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Login Button
                           Consumer<AuthProvider>(
                             builder: (context, auth, _) {
-                              return PixelButton(
-                                text: 'LOGIN',
-                                icon: Icons.login,
-                                onPressed: auth.isLoading ? null : _handleLogin,
-                                isLoading: auth.isLoading,
+                              return SizedBox(
                                 width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: auth.isLoading ? null : _handleLogin,
+                                  child: auth.isLoading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Text('Sign In'),
+                                ),
                               );
                             },
                           ),
@@ -188,8 +244,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'New Player? ',
-                                style: PixelTheme.bodyMedium,
+                                "Don't have an account? ",
+                                style: TextStyle(
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
                               ),
                               GestureDetector(
                                 onTap: () {
@@ -200,25 +258,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                   );
                                 },
                                 child: Text(
-                                  'REGISTER',
-                                  style: PixelTheme.bodyMedium.copyWith(
-                                    color: PixelTheme.primary,
-                                    decoration: TextDecoration.underline,
+                                  'Sign Up',
+                                  style: TextStyle(
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    // Footer
-                    Text(
-                      'CRAFTED WITH ♥',
-                      style: PixelTheme.bodySmall.copyWith(
-                        color: PixelTheme.textMuted,
                       ),
                     ),
                   ],

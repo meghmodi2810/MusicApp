@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:email_validator/email_validator.dart';
 import '../providers/auth_provider.dart';
-import '../theme/pixel_theme.dart';
-import '../widgets/pixel_widgets.dart';
-import 'main_screen.dart';
+import '../providers/theme_provider.dart';
+import '../main.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -44,8 +43,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (success && mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const MainScreen()),
+          (route) => false,
         );
       }
     }
@@ -53,17 +53,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    final primaryColor = themeProvider.primaryColor;
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              PixelTheme.coalBlack,
-              PixelTheme.stoneGray.withOpacity(0.8),
-              PixelTheme.coalBlack,
-            ],
+            colors: isDark 
+                ? [
+                    themeProvider.backgroundColor,
+                    themeProvider.cardColor.withValues(alpha: 0.8),
+                    themeProvider.backgroundColor,
+                  ]
+                : [
+                    Colors.white,
+                    Colors.grey[100]!,
+                    Colors.white,
+                  ],
           ),
         ),
         child: SafeArea(
@@ -78,8 +88,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     // Back Button
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: PixelIconButton(
-                        icon: Icons.arrow_back,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.arrow_back,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
@@ -88,29 +101,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     // Register Card
                     Container(
                       constraints: const BoxConstraints(maxWidth: 400),
-                      decoration: PixelTheme.pixelCard(),
+                      decoration: BoxDecoration(
+                        color: isDark ? themeProvider.cardColor : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'CREATE ACCOUNT',
-                            style: PixelTheme.headingSmall,
+                            'Create Account',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 24),
                           
                           // Username Field
-                          PixelTextField(
-                            label: 'Username',
+                          TextFormField(
                             controller: _usernameController,
-                            prefixIcon: Icons.person,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Username',
+                              prefixIcon: Icon(Icons.person, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                            ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Username required';
                               }
                               if (value.length < 3) {
-                                return 'Min 3 chars';
+                                return 'Min 3 characters';
                               }
                               if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
                                 return 'Letters, numbers, _ only';
@@ -121,11 +151,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
                           
                           // Email Field
-                          PixelTextField(
-                            label: 'Email',
+                          TextFormField(
                             controller: _emailController,
-                            prefixIcon: Icons.email,
                             keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                            ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Email required';
@@ -139,10 +172,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
                           
                           // Display Name Field
-                          PixelTextField(
-                            label: 'Display Name',
+                          TextFormField(
                             controller: _displayNameController,
-                            prefixIcon: Icons.badge,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Display Name',
+                              prefixIcon: Icon(Icons.badge, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                            ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Display name required';
@@ -153,27 +189,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
                           
                           // Password Field
-                          PixelTextField(
-                            label: 'Password',
+                          TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            prefixIcon: Icons.lock,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                                color: PixelTheme.textSecondary,
-                                size: 20,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: Icon(Icons.lock, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                                onPressed: () {
+                                  setState(() => _obscurePassword = !_obscurePassword);
+                                },
                               ),
-                              onPressed: () {
-                                setState(() => _obscurePassword = !_obscurePassword);
-                              },
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Password required';
                               }
                               if (value.length < 6) {
-                                return 'Min 6 chars';
+                                return 'Min 6 characters';
                               }
                               return null;
                             },
@@ -181,20 +219,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
                           
                           // Confirm Password Field
-                          PixelTextField(
-                            label: 'Confirm Password',
+                          TextFormField(
                             controller: _confirmPasswordController,
                             obscureText: _obscureConfirmPassword,
-                            prefixIcon: Icons.lock_outline,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                                color: PixelTheme.textSecondary,
-                                size: 20,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Confirm Password',
+                              prefixIcon: Icon(Icons.lock_outline, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                                onPressed: () {
+                                  setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+                                },
                               ),
-                              onPressed: () {
-                                setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-                              },
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -216,15 +256,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   padding: const EdgeInsets.only(bottom: 16),
                                   child: Container(
                                     padding: const EdgeInsets.all(12),
-                                    decoration: PixelTheme.pixelBox(
-                                      color: PixelTheme.danger.withOpacity(0.2),
-                                      borderColor: PixelTheme.danger,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                                     ),
                                     child: Text(
                                       auth.error!,
-                                      style: PixelTheme.bodyMedium.copyWith(
-                                        color: PixelTheme.danger,
-                                      ),
+                                      style: const TextStyle(color: Colors.red),
                                       textAlign: TextAlign.center,
                                     ),
                                   ),
@@ -237,14 +276,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           // Register Button
                           Consumer<AuthProvider>(
                             builder: (context, auth, _) {
-                              return PixelButton(
-                                text: 'REGISTER',
-                                icon: Icons.person_add,
-                                onPressed: auth.isLoading ? null : _handleRegister,
-                                isLoading: auth.isLoading,
+                              return SizedBox(
                                 width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: auth.isLoading ? null : _handleRegister,
+                                  child: auth.isLoading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Text('Create Account'),
+                                ),
                               );
                             },
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          // Login Link
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Already have an account? ',
+                                style: TextStyle(
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Text(
+                                  'Sign In',
+                                  style: TextStyle(
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

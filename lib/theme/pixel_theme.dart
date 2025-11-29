@@ -85,7 +85,7 @@ class PixelTheme {
           ? []
           : [
               BoxShadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 offset: const Offset(4, 4),
                 blurRadius: 0,
               ),
@@ -99,7 +99,7 @@ class PixelTheme {
       border: Border.all(color: pixelBorder, width: 3),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
           offset: const Offset(4, 4),
           blurRadius: 0,
         ),

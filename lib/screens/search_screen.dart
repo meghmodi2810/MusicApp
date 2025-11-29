@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import '../models/song_model.dart';
 import '../services/music_api_service.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/song_tile.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -65,21 +67,23 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    
     return Scaffold(
-      backgroundColor: const Color(0xFF0d0d0d),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Text(
                 'Search',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
             ),
@@ -87,44 +91,64 @@ class _SearchScreenState extends State<SearchScreen> {
             // Search Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2a2a2a),
-                  borderRadius: BorderRadius.circular(8),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _focusNode,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 16,
                 ),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _focusNode,
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                  decoration: InputDecoration(
-                    hintText: 'What do you want to listen to?',
-                    hintStyle: TextStyle(color: Colors.grey[500]),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: Colors.white70),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {
-                                _searchResults = [];
-                                _hasSearched = false;
-                              });
-                            },
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: InputDecoration(
+                  hintText: 'What do you want to listen to?',
+                  hintMaxLines: 1,
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                    fontSize: 16,
                   ),
-                  onChanged: (value) => setState(() {}),
-                  onSubmitted: _search,
-                  textInputAction: TextInputAction.search,
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: isDark ? Colors.white70 : Colors.grey[600],
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.clear,
+                            color: isDark ? Colors.white70 : Colors.grey[600],
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchResults = [];
+                              _hasSearched = false;
+                            });
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF2a2a2a) : Colors.grey[200],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
+                onChanged: (value) => setState(() {}),
+                onSubmitted: _search,
+                textInputAction: TextInputAction.search,
               ),
             ),
 
             // Content
             Expanded(
-              child: _hasSearched ? _buildSearchResults() : _buildGenreGrid(),
+              child: _hasSearched ? _buildSearchResults(isDark) : _buildGenreGrid(isDark),
             ),
           ],
         ),
@@ -132,18 +156,18 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildGenreGrid() {
+  Widget _buildGenreGrid(bool isDark) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Browse all',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 16),
@@ -176,7 +200,7 @@ class _SearchScreenState extends State<SearchScreen> {
           gradient: LinearGradient(
             colors: [
               genre['color'],
-              genre['color'].withOpacity(0.6),
+              (genre['color'] as Color).withOpacity(0.6),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -214,20 +238,20 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildSearchResults() {
+  Widget _buildSearchResults(bool isDark) {
     if (_isLoading) {
       return ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: 8,
         itemBuilder: (context, index) {
           return Shimmer.fromColors(
-            baseColor: const Color(0xFF1a1a1a),
-            highlightColor: const Color(0xFF2a2a2a),
+            baseColor: isDark ? const Color(0xFF1a1a1a) : Colors.grey[300]!,
+            highlightColor: isDark ? const Color(0xFF2a2a2a) : Colors.grey[100]!,
             child: Container(
               height: 70,
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFF1a1a1a),
+                color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[300],
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
@@ -241,45 +265,49 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey[700]),
+            Icon(Icons.search_off, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
               'No results found',
-              style: TextStyle(color: Colors.grey[500], fontSize: 18),
+              style: TextStyle(
+                color: isDark ? Colors.grey[500] : Colors.grey[600],
+                fontSize: 18,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Try different keywords',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              style: TextStyle(
+                color: isDark ? Colors.grey[600] : Colors.grey[500],
+                fontSize: 14,
+              ),
             ),
           ],
         ),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-          child: Text(
-            '${_searchResults.length} results',
-            style: TextStyle(color: Colors.grey[400], fontSize: 14),
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            itemCount: _searchResults.length,
-            itemBuilder: (context, index) {
-              return SongTile(
-                song: _searchResults[index],
-                playlist: _searchResults,
-              );
-            },
-          ),
-        ),
-      ],
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      itemCount: _searchResults.length + 1, // +1 for header
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+            child: Text(
+              '${_searchResults.length} results',
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          );
+        }
+        return SongTile(
+          song: _searchResults[index - 1],
+          playlist: _searchResults,
+        );
+      },
     );
   }
 }
