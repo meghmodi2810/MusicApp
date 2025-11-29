@@ -1,0 +1,79 @@
+name: music_app
+description: "A beautiful music streaming app"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  
+  # Audio player
+  just_audio: ^0.9.40
+  audio_session: ^0.1.21
+  
+  # HTTP requests for API
+  http: ^1.2.2
+  
+  # State management
+  provider: ^6.1.2
+  
+  # Cached network images
+  cached_network_image: ^3.4.1
+  
+  # Audio visualization
+  audio_video_progress_bar: ^2.0.3
+  
+  # Smooth animations
+  flutter_animate: ^4.5.0
+  
+  # Glass/blur effects
+  glass_kit: ^4.0.1
+  
+  # Icons
+  iconsax: ^0.0.8
+  
+  # Palette extraction from images
+  palette_generator: ^0.3.3+4
+  
+  # Shimmer loading effect
+  shimmer: ^3.0.0
+  
+  # Database
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  path_provider: ^2.1.1
+  
+  # Secure storage for credentials
+  shared_preferences: ^2.2.2
+  
+  # Encryption for passwords
+  crypto: ^3.0.3
+  
+  # Google Fonts for pixel font
+  google_fonts: ^6.1.0
+  
+  # Form validation
+  email_validator: ^2.1.17
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/fonts/
+  
+  fonts:
+    - family: PressStart2P
+      fonts:
+        - asset: assets/fonts/PressStart2P-Regular.ttf
