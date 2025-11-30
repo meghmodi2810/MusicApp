@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import '../providers/music_player_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/song_model.dart';
 
 class PlayerScreen extends StatelessWidget {
@@ -14,6 +15,8 @@ class PlayerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Consumer<MusicPlayerProvider>(
       builder: (context, player, child) {
         final song = player.currentSong;
@@ -29,12 +32,12 @@ class PlayerScreen extends StatelessWidget {
                     imageUrl: song!.highQualityArt,
                     fit: BoxFit.cover,
                     errorWidget: (context, url, error) => Container(
-                      color: const Color(0xFF0d0d0d),
+                      color: themeProvider.backgroundColor,
                     ),
                   ),
                 ),
               
-              // Gradient overlay
+              // Gradient overlay matching theme
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -42,10 +45,10 @@ class PlayerScreen extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withValues(alpha: 0.3),
-                        Colors.black.withValues(alpha: 0.7),
-                        Colors.black.withValues(alpha: 0.95),
-                        Colors.black,
+                        themeProvider.backgroundColor.withOpacity(0.3),
+                        themeProvider.backgroundColor.withOpacity(0.7),
+                        themeProvider.backgroundColor.withOpacity(0.95),
+                        themeProvider.backgroundColor,
                       ],
                       stops: const [0.0, 0.3, 0.6, 1.0],
                     ),
@@ -64,8 +67,8 @@ class PlayerScreen extends StatelessWidget {
               // Content
               SafeArea(
                 child: song == null
-                    ? _buildNoSongPlaying(context)
-                    : _buildPlayerContent(context, player, song),
+                    ? _buildNoSongPlaying(context, themeProvider)
+                    : _buildPlayerContent(context, player, song, themeProvider),
               ),
             ],
           ),
@@ -74,29 +77,35 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNoSongPlaying(BuildContext context) {
+  Widget _buildNoSongPlaying(BuildContext context, ThemeProvider themeProvider) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.music_off_rounded, size: 80, color: Colors.grey[700]),
+          Icon(Icons.music_off_rounded, size: 80, color: themeProvider.secondaryTextColor),
           const SizedBox(height: 16),
-          Text('No song playing', style: TextStyle(color: Colors.grey[500], fontSize: 18)),
+          Text(
+            'No song playing',
+            style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 18),
+          ),
           const SizedBox(height: 24),
           TextButton.icon(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Go Back'),
+            icon: Icon(Icons.arrow_back, color: themeProvider.primaryColor),
+            label: Text('Go Back', style: TextStyle(color: themeProvider.primaryColor)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPlayerContent(BuildContext context, MusicPlayerProvider player, SongModel song) {
+  Widget _buildPlayerContent(BuildContext context, MusicPlayerProvider player, SongModel song, ThemeProvider themeProvider) {
     final authProvider = Provider.of<AuthProvider>(context);
     final playlistProvider = Provider.of<PlaylistProvider>(context);
     final isLiked = authProvider.isLoggedIn ? playlistProvider.isSongLikedSync(song.id) : false;
+    final accentColor = themeProvider.primaryColor;
+    final textColor = themeProvider.textColor;
+    final secondaryText = themeProvider.secondaryTextColor;
 
     return Column(
       children: [
@@ -108,26 +117,26 @@ class PlayerScreen extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32),
-                color: Colors.white,
+                color: textColor,
                 onPressed: () => Navigator.pop(context),
               ),
               Column(
                 children: [
                   Text(
                     'PLAYING FROM',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 10, letterSpacing: 1.5),
+                    style: TextStyle(color: secondaryText, fontSize: 10, letterSpacing: 1.5),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     song.album,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
               IconButton(
                 icon: const Icon(Icons.more_vert_rounded),
-                color: Colors.white,
-                onPressed: () => _showSongOptions(context, song),
+                color: textColor,
+                onPressed: () => _showSongOptions(context, song, themeProvider),
               ),
             ],
           ),
@@ -142,39 +151,39 @@ class PlayerScreen extends StatelessWidget {
             width: MediaQuery.of(context).size.width * 0.8,
             height: MediaQuery.of(context).size.width * 0.8,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1DB954).withValues(alpha: 0.3),
+                  color: accentColor.withOpacity(0.3),
                   blurRadius: 40,
                   spreadRadius: 5,
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
+                  color: Colors.black.withOpacity(0.3),
                   blurRadius: 30,
                   offset: const Offset(0, 20),
                 ),
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
               child: song.albumArt != null
                   ? CachedNetworkImage(
                       imageUrl: song.highQualityArt,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
-                        color: const Color(0xFF1a1a1a),
-                        child: const Center(child: CircularProgressIndicator(color: Color(0xFF1DB954))),
+                        color: themeProvider.cardColor,
+                        child: Center(child: CircularProgressIndicator(color: accentColor)),
                       ),
                       errorWidget: (context, url, error) => Container(
-                        color: const Color(0xFF1a1a1a),
-                        child: const Icon(Icons.music_note, size: 80, color: Colors.white24),
+                        color: themeProvider.cardColor,
+                        child: Icon(Icons.music_note, size: 80, color: secondaryText),
                       ),
                     )
                   : Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0xFF1DB954), Color(0xFF1a1a1a)],
+                          colors: [accentColor, accentColor.withOpacity(0.5)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -201,8 +210,8 @@ class PlayerScreen extends StatelessWidget {
                       children: [
                         Text(
                           song.title,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textColor,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
@@ -212,7 +221,7 @@ class PlayerScreen extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           song.artist,
-                          style: TextStyle(color: Colors.grey[400], fontSize: 16),
+                          style: TextStyle(color: secondaryText, fontSize: 16),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -224,11 +233,14 @@ class PlayerScreen extends StatelessWidget {
                       isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                       size: 28,
                     ),
-                    color: isLiked ? Colors.red : Colors.white,
+                    color: isLiked ? Colors.red : textColor,
                     onPressed: () {
                       if (!authProvider.isLoggedIn) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please log in to like songs')),
+                          SnackBar(
+                            content: const Text('Please log in to like songs'),
+                            backgroundColor: accentColor,
+                          ),
                         );
                         return;
                       }
@@ -249,12 +261,12 @@ class PlayerScreen extends StatelessWidget {
                 barHeight: 4,
                 thumbRadius: 6,
                 thumbGlowRadius: 15,
-                progressBarColor: const Color(0xFF1DB954),
-                bufferedBarColor: const Color(0xFF1DB954).withValues(alpha: 0.3),
-                baseBarColor: Colors.grey[800]!,
-                thumbColor: Colors.white,
-                thumbGlowColor: const Color(0xFF1DB954).withValues(alpha: 0.3),
-                timeLabelTextStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                progressBarColor: accentColor,
+                bufferedBarColor: accentColor.withOpacity(0.3),
+                baseBarColor: secondaryText.withOpacity(0.3),
+                thumbColor: accentColor,
+                thumbGlowColor: accentColor.withOpacity(0.3),
+                timeLabelTextStyle: TextStyle(color: secondaryText, fontSize: 12),
               ),
 
               const SizedBox(height: 20),
@@ -266,14 +278,13 @@ class PlayerScreen extends StatelessWidget {
                   IconButton(
                     icon: Icon(
                       Icons.shuffle_rounded,
-                      color: player.isShuffleOn ? const Color(0xFF1DB954) : Colors.white,
+                      color: player.isShuffleOn ? accentColor : textColor,
                     ),
                     iconSize: 24,
                     onPressed: player.toggleShuffle,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.skip_previous_rounded),
-                    color: Colors.white,
+                    icon: Icon(Icons.skip_previous_rounded, color: textColor),
                     iconSize: 40,
                     onPressed: player.playPrevious,
                   ),
@@ -283,35 +294,41 @@ class PlayerScreen extends StatelessWidget {
                     child: Container(
                       width: 70,
                       height: 70,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: accentColor,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: accentColor.withOpacity(0.4),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
                       child: player.isLoading
                           ? const Center(
                               child: SizedBox(
                                 width: 30,
                                 height: 30,
-                                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 3),
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                               ),
                             )
                           : Icon(
                               player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                               size: 40,
-                              color: Colors.black,
+                              color: Colors.white,
                             ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.skip_next_rounded),
-                    color: Colors.white,
+                    icon: Icon(Icons.skip_next_rounded, color: textColor),
                     iconSize: 40,
                     onPressed: player.playNext,
                   ),
                   IconButton(
                     icon: Icon(
                       player.loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
-                      color: player.loopMode != LoopMode.off ? const Color(0xFF1DB954) : Colors.white,
+                      color: player.loopMode != LoopMode.off ? accentColor : textColor,
                     ),
                     iconSize: 24,
                     onPressed: player.toggleLoopMode,
@@ -326,22 +343,22 @@ class PlayerScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.playlist_add_rounded, size: 24),
-                    color: Colors.grey[400],
-                    onPressed: () => _showAddToPlaylist(context, song),
+                    icon: Icon(Icons.playlist_add_rounded, size: 24, color: secondaryText),
+                    onPressed: () => _showAddToPlaylist(context, song, themeProvider),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.share_rounded, size: 20),
-                    color: Colors.grey[400],
+                    icon: Icon(Icons.share_rounded, size: 20, color: secondaryText),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Share: ${song.title} by ${song.artist}')),
+                        SnackBar(
+                          content: Text('Share: ${song.title} by ${song.artist}'),
+                          backgroundColor: accentColor,
+                        ),
                       );
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.queue_music_rounded, size: 20),
-                    color: Colors.grey[400],
+                    icon: Icon(Icons.queue_music_rounded, size: 20, color: secondaryText),
                     onPressed: () {},
                   ),
                 ],
@@ -355,16 +372,16 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
-  void _showSongOptions(BuildContext context, SongModel song) {
+  void _showSongOptions(BuildContext context, SongModel song, ThemeProvider themeProvider) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final playlistProvider = Provider.of<PlaylistProvider>(context, listen: false);
     final isLiked = authProvider.isLoggedIn ? playlistProvider.isSongLikedSync(song.id) : false;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: themeProvider.cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(16),
@@ -375,7 +392,7 @@ class PlayerScreen extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[600],
+                color: themeProvider.secondaryTextColor.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -383,17 +400,20 @@ class PlayerScreen extends StatelessWidget {
             ListTile(
               leading: Icon(
                 isLiked ? Icons.favorite : Icons.favorite_border,
-                color: isLiked ? Colors.red : Colors.white,
+                color: isLiked ? Colors.red : themeProvider.textColor,
               ),
               title: Text(
                 isLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs',
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: themeProvider.textColor),
               ),
               onTap: () {
                 Navigator.pop(context);
                 if (!authProvider.isLoggedIn) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please log in to like songs')),
+                    SnackBar(
+                      content: const Text('Please log in to like songs'),
+                      backgroundColor: themeProvider.primaryColor,
+                    ),
                   );
                   return;
                 }
@@ -401,20 +421,23 @@ class PlayerScreen extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.playlist_add, color: Colors.white),
-              title: const Text('Add to Playlist', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.playlist_add, color: themeProvider.textColor),
+              title: Text('Add to Playlist', style: TextStyle(color: themeProvider.textColor)),
               onTap: () {
                 Navigator.pop(context);
-                _showAddToPlaylist(context, song);
+                _showAddToPlaylist(context, song, themeProvider);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.share, color: Colors.white),
-              title: const Text('Share', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.share, color: themeProvider.textColor),
+              title: Text('Share', style: TextStyle(color: themeProvider.textColor)),
               onTap: () {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Share: ${song.title} by ${song.artist}')),
+                  SnackBar(
+                    content: Text('Share: ${song.title} by ${song.artist}'),
+                    backgroundColor: themeProvider.primaryColor,
+                  ),
                 );
               },
             ),
@@ -424,11 +447,14 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
-  void _showAddToPlaylist(BuildContext context, SongModel song) {
+  void _showAddToPlaylist(BuildContext context, SongModel song, ThemeProvider themeProvider) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (!authProvider.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to add to playlists')),
+        SnackBar(
+          content: const Text('Please log in to add to playlists'),
+          backgroundColor: themeProvider.primaryColor,
+        ),
       );
       return;
     }
@@ -438,9 +464,9 @@ class PlayerScreen extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: themeProvider.cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(16),
@@ -456,15 +482,19 @@ class PlayerScreen extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[600],
+                  color: themeProvider.secondaryTextColor.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Add to Playlist',
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: themeProvider.textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 16),
             ListTile(
@@ -472,22 +502,31 @@ class PlayerScreen extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2a2a2a),
-                  borderRadius: BorderRadius.circular(8),
+                  color: themeProvider.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.add, color: Color(0xFF1DB954)),
+                child: Icon(Icons.add, color: themeProvider.primaryColor),
               ),
-              title: const Text('Create New Playlist', style: TextStyle(color: Color(0xFF1DB954), fontWeight: FontWeight.w600)),
+              title: Text(
+                'Create New Playlist',
+                style: TextStyle(
+                  color: themeProvider.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               onTap: () {
                 Navigator.pop(context);
-                _showCreatePlaylistDialog(context, song, playlistProvider);
+                _showCreatePlaylistDialog(context, song, playlistProvider, themeProvider);
               },
             ),
-            const Divider(color: Colors.grey),
+            Divider(color: themeProvider.secondaryTextColor.withOpacity(0.2)),
             if (playlists.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No playlists yet. Create one!', style: TextStyle(color: Colors.grey)),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No playlists yet. Create one!',
+                  style: TextStyle(color: themeProvider.secondaryTextColor),
+                ),
               )
             else
               Expanded(
@@ -501,23 +540,41 @@ class PlayerScreen extends StatelessWidget {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2a2a2a),
-                          borderRadius: BorderRadius.circular(8),
+                          color: themeProvider.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: playlist.coverUrl != null
                             ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CachedNetworkImage(imageUrl: playlist.coverUrl!, fit: BoxFit.cover),
+                                borderRadius: BorderRadius.circular(12),
+                                child: CachedNetworkImage(
+                                  imageUrl: playlist.coverUrl!,
+                                  fit: BoxFit.cover,
+                                ),
                               )
-                            : const Icon(Icons.queue_music, color: Colors.white54),
+                            : Icon(Icons.queue_music, color: themeProvider.primaryColor),
                       ),
-                      title: Text(playlist.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                      subtitle: Text('${playlist.songCount} songs', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      title: Text(
+                        playlist.name,
+                        style: TextStyle(
+                          color: themeProvider.textColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${playlist.songCount} songs',
+                        style: TextStyle(
+                          color: themeProvider.secondaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
                       onTap: () async {
                         Navigator.pop(context);
                         await playlistProvider.addSongToPlaylist(playlist.id, song);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Added to "${playlist.name}"')),
+                          SnackBar(
+                            content: Text('Added to "${playlist.name}"'),
+                            backgroundColor: themeProvider.primaryColor,
+                          ),
                         );
                       },
                     );
@@ -530,15 +587,15 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
-  void _showCreatePlaylistDialog(BuildContext context, SongModel song, PlaylistProvider playlistProvider) {
+  void _showCreatePlaylistDialog(BuildContext context, SongModel song, PlaylistProvider playlistProvider, ThemeProvider themeProvider) {
     final nameController = TextEditingController();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1a1a1a),
+      backgroundColor: themeProvider.cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -552,22 +609,35 @@ class PlayerScreen extends StatelessWidget {
                 child: Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                    color: themeProvider.secondaryTextColor.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
-              const Text('Create Playlist', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(
+                'Create Playlist',
+                style: TextStyle(
+                  color: themeProvider.textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 20),
               TextField(
                 controller: nameController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: themeProvider.textColor),
                 decoration: InputDecoration(
                   hintText: 'Playlist name',
-                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  hintStyle: TextStyle(color: themeProvider.secondaryTextColor),
                   filled: true,
-                  fillColor: const Color(0xFF2a2a2a),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                  fillColor: themeProvider.backgroundColor,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -581,17 +651,25 @@ class PlayerScreen extends StatelessWidget {
                       if (newPlaylist != null) {
                         await playlistProvider.addSongToPlaylist(newPlaylist.id, song);
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added to "$name"')));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Added to "$name"'),
+                            backgroundColor: themeProvider.primaryColor,
+                          ),
+                        );
                       }
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1DB954),
-                    foregroundColor: Colors.black,
+                    backgroundColor: themeProvider.primaryColor,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Create & Add Song', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: const Text(
+                    'Create & Add Song',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),

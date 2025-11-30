@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/music_player_provider.dart';
+import '../providers/theme_provider.dart';
 import '../screens/player_screen.dart';
 
 class MiniPlayer extends StatelessWidget {
@@ -9,6 +10,8 @@ class MiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Consumer<MusicPlayerProvider>(
       builder: (context, player, child) {
         final song = player.currentSong;
@@ -35,16 +38,11 @@ class MiniPlayer extends StatelessWidget {
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF2a2a2a),
-                  const Color(0xFF1a1a1a).withValues(alpha: 0.95),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
+              color: themeProvider.cardColor,
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: themeProvider.primaryColor.withOpacity(0.15),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -54,14 +52,14 @@ class MiniPlayer extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   child: Row(
                     children: [
                       // Album Art
                       Hero(
                         tag: 'album_art',
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           child: SizedBox(
                             width: 48,
                             height: 48,
@@ -70,16 +68,16 @@ class MiniPlayer extends StatelessWidget {
                                     imageUrl: song.albumArt!,
                                     fit: BoxFit.cover,
                                     placeholder: (context, url) => Container(
-                                      color: const Color(0xFF1a1a1a),
+                                      color: themeProvider.primaryColor.withOpacity(0.1),
                                     ),
                                     errorWidget: (context, url, error) => Container(
-                                      color: const Color(0xFF1a1a1a),
-                                      child: const Icon(Icons.music_note, color: Colors.white24),
+                                      color: themeProvider.primaryColor.withOpacity(0.1),
+                                      child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
                                     ),
                                   )
                                 : Container(
-                                    color: const Color(0xFF1a1a1a),
-                                    child: const Icon(Icons.music_note, color: Colors.white24),
+                                    color: themeProvider.primaryColor.withOpacity(0.1),
+                                    child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
                                   ),
                           ),
                         ),
@@ -93,8 +91,8 @@ class MiniPlayer extends StatelessWidget {
                           children: [
                             Text(
                               song.title,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: themeProvider.textColor,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
@@ -104,7 +102,7 @@ class MiniPlayer extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               song.artist,
-                              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 12),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -113,16 +111,22 @@ class MiniPlayer extends StatelessWidget {
                       ),
                       // Controls
                       IconButton(
-                        icon: const Icon(Icons.favorite_border, size: 22),
-                        color: Colors.white,
-                        onPressed: () {},
+                        icon: Icon(Icons.skip_previous_rounded, size: 28, color: themeProvider.textColor),
+                        onPressed: player.playPrevious,
                       ),
                       Container(
-                        width: 42,
-                        height: 42,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: themeProvider.primaryColor,
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: themeProvider.primaryColor.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: IconButton(
                           padding: EdgeInsets.zero,
@@ -132,16 +136,20 @@ class MiniPlayer extends StatelessWidget {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.black,
+                                    color: Colors.white,
                                   ),
                                 )
                               : Icon(
-                                  player.isPlaying ? Icons.pause : Icons.play_arrow,
-                                  size: 26,
+                                  player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                  size: 28,
                                 ),
-                          color: Colors.black,
+                          color: Colors.white,
                           onPressed: player.togglePlayPause,
                         ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.skip_next_rounded, size: 28, color: themeProvider.textColor),
+                        onPressed: player.playNext,
                       ),
                     ],
                   ),
@@ -149,15 +157,15 @@ class MiniPlayer extends StatelessWidget {
                 // Progress Bar
                 ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
                   ),
                   child: LinearProgressIndicator(
                     value: player.duration.inMilliseconds > 0
                         ? player.position.inMilliseconds / player.duration.inMilliseconds
                         : 0,
-                    backgroundColor: Colors.grey[800],
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1DB954)),
+                    backgroundColor: themeProvider.secondaryTextColor.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(themeProvider.primaryColor),
                     minHeight: 3,
                   ),
                 ),

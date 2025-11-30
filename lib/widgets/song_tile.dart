@@ -25,21 +25,23 @@ class SongTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-    final primaryColor = themeProvider.primaryColor;
+    final cardColor = themeProvider.cardColor;
+    final accentColor = themeProvider.primaryColor;
+    final textColor = themeProvider.textColor;
+    final secondaryText = themeProvider.secondaryTextColor;
     
     return Consumer<MusicPlayerProvider>(
       builder: (context, player, child) {
         final isPlaying = player.currentSong?.id == song.id;
         
         return Container(
-          margin: const EdgeInsets.only(bottom: 4),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: isPlaying ? primaryColor.withValues(alpha: 0.1) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: isPlaying ? accentColor.withOpacity(0.15) : cardColor,
+            borderRadius: BorderRadius.circular(16),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             leading: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -50,17 +52,17 @@ class SongTile extends StatelessWidget {
                       '$index',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: isPlaying ? primaryColor : (isDark ? Colors.grey[500] : Colors.grey[600]),
+                        color: isPlaying ? accentColor : secondaryText,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
                     ),
                   ),
-                const SizedBox(width: 8),
+                if (index != null) const SizedBox(width: 8),
                 Stack(
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       child: SizedBox(
                         width: 50,
                         height: 50,
@@ -69,17 +71,17 @@ class SongTile extends StatelessWidget {
                                 imageUrl: song.albumArt!,
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
-                                  color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
-                                  child: Icon(Icons.music_note, color: isDark ? Colors.white24 : Colors.grey[400]),
+                                  color: accentColor.withOpacity(0.1),
+                                  child: Icon(Icons.music_note, color: secondaryText),
                                 ),
                                 errorWidget: (context, url, error) => Container(
-                                  color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
-                                  child: Icon(Icons.music_note, color: isDark ? Colors.white24 : Colors.grey[400]),
+                                  color: accentColor.withOpacity(0.1),
+                                  child: Icon(Icons.music_note, color: secondaryText),
                                 ),
                               )
                             : Container(
-                                color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
-                                child: Icon(Icons.music_note, color: isDark ? Colors.white24 : Colors.grey[400]),
+                                color: accentColor.withOpacity(0.1),
+                                child: Icon(Icons.music_note, color: secondaryText),
                               ),
                       ),
                     ),
@@ -88,12 +90,12 @@ class SongTile extends StatelessWidget {
                         width: 50,
                         height: 50,
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           player.isPlaying ? Icons.equalizer : Icons.pause,
-                          color: primaryColor,
+                          color: accentColor,
                           size: 24,
                         ),
                       ),
@@ -104,7 +106,7 @@ class SongTile extends StatelessWidget {
             title: Text(
               song.title,
               style: TextStyle(
-                color: isPlaying ? primaryColor : (isDark ? Colors.white : Colors.black87),
+                color: isPlaying ? accentColor : textColor,
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
               ),
@@ -114,7 +116,7 @@ class SongTile extends StatelessWidget {
             subtitle: Text(
               song.artist,
               style: TextStyle(
-                color: isDark ? Colors.grey[500] : Colors.grey[600],
+                color: secondaryText,
                 fontSize: 13,
               ),
               maxLines: 1,
@@ -127,24 +129,23 @@ class SongTile extends StatelessWidget {
                   Text(
                     _formatDuration(song.duration!),
                     style: TextStyle(
-                      color: isDark ? Colors.grey[600] : Colors.grey[500],
+                      color: secondaryText,
                       fontSize: 12,
                     ),
                   ),
                 IconButton(
                   icon: Icon(
                     Icons.more_vert,
-                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                    color: secondaryText,
                     size: 20,
                   ),
-                  onPressed: () => _showOptions(context, isDark, primaryColor),
+                  onPressed: () => _showOptions(context, themeProvider),
                 ),
               ],
             ),
             onTap: () {
               player.playSong(song, playlist: playlist);
               
-              // Track recently played if logged in
               final authProvider = Provider.of<AuthProvider>(context, listen: false);
               if (authProvider.isLoggedIn) {
                 final playlistProvider = Provider.of<PlaylistProvider>(context, listen: false);
@@ -166,16 +167,16 @@ class SongTile extends StatelessWidget {
     );
   }
 
-  void _showOptions(BuildContext context, bool isDark, Color primaryColor) {
+  void _showOptions(BuildContext context, ThemeProvider themeProvider) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final playlistProvider = Provider.of<PlaylistProvider>(context, listen: false);
     final isLiked = authProvider.isLoggedIn ? playlistProvider.isSongLikedSync(song.id) : false;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDark ? const Color(0xFF1a1a1a) : Colors.white,
+      backgroundColor: themeProvider.cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(16),
@@ -186,26 +187,22 @@ class SongTile extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[600],
+                color: themeProvider.secondaryTextColor.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 16),
-            // Song info header
             Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
                     width: 50,
                     height: 50,
                     child: song.albumArt != null
-                        ? CachedNetworkImage(
-                            imageUrl: song.albumArt!,
-                            fit: BoxFit.cover,
-                          )
+                        ? CachedNetworkImage(imageUrl: song.albumArt!, fit: BoxFit.cover)
                         : Container(
-                            color: isDark ? const Color(0xFF2a2a2a) : Colors.grey[200],
+                            color: themeProvider.primaryColor.withOpacity(0.1),
                             child: const Icon(Icons.music_note),
                           ),
                   ),
@@ -218,7 +215,7 @@ class SongTile extends StatelessWidget {
                       Text(
                         song.title,
                         style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
+                          color: themeProvider.textColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
@@ -228,7 +225,7 @@ class SongTile extends StatelessWidget {
                       Text(
                         song.artist,
                         style: TextStyle(
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          color: themeProvider.secondaryTextColor,
                           fontSize: 14,
                         ),
                         maxLines: 1,
@@ -240,69 +237,57 @@ class SongTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            const Divider(),
-            // Like option
+            Divider(color: themeProvider.secondaryTextColor.withOpacity(0.2)),
             ListTile(
               leading: Icon(
                 isLiked ? Icons.favorite : Icons.favorite_border,
-                color: isLiked ? Colors.red : (isDark ? Colors.white : Colors.black87),
+                color: isLiked ? Colors.red : themeProvider.textColor,
               ),
               title: Text(
                 isLiked ? 'Remove from Liked Songs' : 'Add to Liked Songs',
-                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                style: TextStyle(color: themeProvider.textColor),
               ),
               onTap: () {
                 Navigator.pop(context);
                 if (!authProvider.isLoggedIn) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please log in to like songs')),
+                    SnackBar(
+                      content: const Text('Please log in to like songs'),
+                      backgroundColor: themeProvider.primaryColor,
+                    ),
                   );
                   return;
                 }
                 playlistProvider.toggleLikeSong(song);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isLiked ? 'Removed from Liked Songs' : 'Added to Liked Songs'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
               },
             ),
-            // Add to playlist option
             ListTile(
-              leading: Icon(Icons.playlist_add, color: isDark ? Colors.white : Colors.black87),
-              title: Text('Add to Playlist', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+              leading: Icon(Icons.playlist_add, color: themeProvider.textColor),
+              title: Text('Add to Playlist', style: TextStyle(color: themeProvider.textColor)),
               onTap: () {
                 Navigator.pop(context);
                 if (!authProvider.isLoggedIn) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please log in to add to playlists')),
+                    SnackBar(
+                      content: const Text('Please log in to add to playlists'),
+                      backgroundColor: themeProvider.primaryColor,
+                    ),
                   );
                   return;
                 }
-                _showPlaylistPicker(context, isDark, primaryColor, playlistProvider);
+                _showPlaylistPicker(context, themeProvider, playlistProvider);
               },
             ),
-            // Play next option
             ListTile(
-              leading: Icon(Icons.queue_play_next, color: isDark ? Colors.white : Colors.black87),
-              title: Text('Play Next', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement play next
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Added to queue')),
-                );
-              },
-            ),
-            // Share option
-            ListTile(
-              leading: Icon(Icons.share, color: isDark ? Colors.white : Colors.black87),
-              title: Text('Share', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+              leading: Icon(Icons.share, color: themeProvider.textColor),
+              title: Text('Share', style: TextStyle(color: themeProvider.textColor)),
               onTap: () {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Share: ${song.title} by ${song.artist}')),
+                  SnackBar(
+                    content: Text('Share: ${song.title} by ${song.artist}'),
+                    backgroundColor: themeProvider.primaryColor,
+                  ),
                 );
               },
             ),
@@ -313,20 +298,18 @@ class SongTile extends StatelessWidget {
     );
   }
 
-  void _showPlaylistPicker(BuildContext context, bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  void _showPlaylistPicker(BuildContext context, ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     final playlists = playlistProvider.playlists;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDark ? const Color(0xFF1a1a1a) : Colors.white,
+      backgroundColor: themeProvider.cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(16),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.6,
-        ),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,7 +319,7 @@ class SongTile extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[600],
+                  color: themeProvider.secondaryTextColor.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -345,44 +328,36 @@ class SongTile extends StatelessWidget {
             Text(
               'Add to Playlist',
               style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
+                color: themeProvider.textColor,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
-            // Create new playlist option
             ListTile(
               leading: Container(
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF2a2a2a) : Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
+                  color: themeProvider.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.add, color: primaryColor),
+                child: Icon(Icons.add, color: themeProvider.primaryColor),
               ),
               title: Text(
                 'Create New Playlist',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(color: themeProvider.primaryColor, fontWeight: FontWeight.w600),
               ),
               onTap: () {
                 Navigator.pop(context);
-                _showCreatePlaylistDialog(context, isDark, primaryColor, playlistProvider);
+                _showCreatePlaylistDialog(context, themeProvider, playlistProvider);
               },
             ),
-            const Divider(),
-            // Existing playlists
+            Divider(color: themeProvider.secondaryTextColor.withOpacity(0.2)),
             if (playlists.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(
-                  'No playlists yet. Create one!',
-                  style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
-                ),
+                child: Text('No playlists yet. Create one!', style: TextStyle(color: themeProvider.secondaryTextColor)),
               )
             else
               Expanded(
@@ -396,42 +371,23 @@ class SongTile extends StatelessWidget {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF2a2a2a) : Colors.grey[200],
-                          borderRadius: BorderRadius.circular(8),
+                          color: themeProvider.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: playlist.coverUrl != null
                             ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CachedNetworkImage(
-                                  imageUrl: playlist.coverUrl!,
-                                  fit: BoxFit.cover,
-                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                child: CachedNetworkImage(imageUrl: playlist.coverUrl!, fit: BoxFit.cover),
                               )
-                            : Icon(
-                                Icons.queue_music,
-                                color: isDark ? Colors.white54 : Colors.grey[600],
-                              ),
+                            : Icon(Icons.queue_music, color: themeProvider.primaryColor),
                       ),
-                      title: Text(
-                        playlist.name,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${playlist.songCount} songs',
-                        style: TextStyle(
-                          color: isDark ? Colors.grey[500] : Colors.grey[600],
-                          fontSize: 12,
-                        ),
-                      ),
+                      title: Text(playlist.name, style: TextStyle(color: themeProvider.textColor, fontWeight: FontWeight.w500)),
+                      subtitle: Text('${playlist.songCount} songs', style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 12)),
                       onTap: () async {
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                         Navigator.pop(context);
                         await playlistProvider.addSongToPlaylist(playlist.id, song);
-                        scaffoldMessenger.showSnackBar(
-                          SnackBar(content: Text('Added to "${playlist.name}"')),
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Added to "${playlist.name}"'), backgroundColor: themeProvider.primaryColor),
                         );
                       },
                     );
@@ -444,20 +400,16 @@ class SongTile extends StatelessWidget {
     );
   }
 
-  void _showCreatePlaylistDialog(BuildContext context, bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  void _showCreatePlaylistDialog(BuildContext context, ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     final nameController = TextEditingController();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF1a1a1a) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: themeProvider.cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: Container(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -468,35 +420,22 @@ class SongTile extends StatelessWidget {
                 child: Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[600],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                  decoration: BoxDecoration(color: themeProvider.secondaryTextColor.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Create Playlist',
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text('Create Playlist', style: TextStyle(color: themeProvider.textColor, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
               TextField(
                 controller: nameController,
                 autofocus: true,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                style: TextStyle(color: themeProvider.textColor),
                 decoration: InputDecoration(
                   hintText: 'Playlist name',
-                  hintStyle: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade600),
+                  hintStyle: TextStyle(color: themeProvider.secondaryTextColor),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF2a2a2a) : Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
+                  fillColor: themeProvider.backgroundColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 20),
@@ -506,30 +445,23 @@ class SongTile extends StatelessWidget {
                   onPressed: () async {
                     final name = nameController.text.trim();
                     if (name.isNotEmpty) {
-                      final scaffoldMessenger = ScaffoldMessenger.of(context);
-                      final navigator = Navigator.of(context);
                       final newPlaylist = await playlistProvider.createPlaylist(name);
                       if (newPlaylist != null) {
                         await playlistProvider.addSongToPlaylist(newPlaylist.id, song);
-                        navigator.pop();
-                        scaffoldMessenger.showSnackBar(
-                          SnackBar(content: Text('Added to "$name"')),
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Added to "$name"'), backgroundColor: themeProvider.primaryColor),
                         );
                       }
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: isDark ? Colors.black : Colors.white,
+                    backgroundColor: themeProvider.primaryColor,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text(
-                    'Create & Add Song',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
+                  child: const Text('Create & Add Song', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
               const SizedBox(height: 16),

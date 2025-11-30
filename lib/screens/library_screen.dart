@@ -38,11 +38,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final playlistProvider = Provider.of<PlaylistProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-    final primaryColor = themeProvider.primaryColor;
+    final accentColor = themeProvider.primaryColor;
+    final textColor = themeProvider.textColor;
+    final cardColor = themeProvider.cardColor;
 
     if (!authProvider.isLoggedIn) {
-      return _buildLoginPrompt(isDark, primaryColor);
+      return _buildLoginPrompt(themeProvider);
     }
 
     return Scaffold(
@@ -63,15 +64,15 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                           height: 32,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [primaryColor, primaryColor.withValues(alpha: 0.7)],
+                              colors: [accentColor, accentColor.withOpacity(0.7)],
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Center(
                             child: Text(
                               (authProvider.currentUser?['display_name'] as String?)?.substring(0, 1).toUpperCase() ?? 'M',
-                              style: TextStyle(
-                                color: isDark ? Colors.black : Colors.white,
+                              style: const TextStyle(
+                                color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -84,7 +85,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
+                            color: textColor,
                           ),
                         ),
                       ],
@@ -92,12 +93,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                     Row(
                       children: [
                         IconButton(
-                          icon: Icon(Icons.search, color: isDark ? Colors.white : Colors.black87),
+                          icon: Icon(Icons.search, color: textColor),
                           onPressed: () {},
                         ),
                         IconButton(
-                          icon: Icon(Icons.add, color: isDark ? Colors.white : Colors.black87),
-                          onPressed: () => _showCreatePlaylistDialog(context, isDark, primaryColor, playlistProvider),
+                          icon: Icon(Icons.add, color: textColor),
+                          onPressed: () => _showCreatePlaylistDialog(context, themeProvider, playlistProvider),
                         ),
                       ],
                     ),
@@ -122,15 +123,16 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                         onSelected: (selected) {
                           setState(() => _selectedFilter = filter);
                         },
-                        backgroundColor: isDark ? const Color(0xFF2a2a2a) : Colors.grey[200],
-                        selectedColor: primaryColor,
+                        backgroundColor: cardColor,
+                        selectedColor: accentColor,
                         labelStyle: TextStyle(
-                          color: isSelected
-                              ? (isDark ? Colors.black : Colors.white)
-                              : (isDark ? Colors.white : Colors.black87),
+                          color: isSelected ? Colors.white : textColor,
                           fontWeight: FontWeight.w500,
                         ),
                         showCheckmark: false,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -142,11 +144,11 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
 
             // Content based on filter
             if (_selectedFilter == 'Playlists')
-              _buildPlaylistsSection(isDark, primaryColor, playlistProvider)
+              _buildPlaylistsSection(themeProvider, playlistProvider)
             else if (_selectedFilter == 'Liked')
-              _buildLikedSongsSection(isDark, primaryColor, playlistProvider)
+              _buildLikedSongsSection(themeProvider, playlistProvider)
             else
-              _buildRecentlyPlayedSection(isDark, primaryColor, playlistProvider),
+              _buildRecentlyPlayedSection(themeProvider, playlistProvider),
 
             // Bottom Padding
             const SliverPadding(padding: EdgeInsets.only(bottom: 150)),
@@ -156,7 +158,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildLoginPrompt(bool isDark, Color primaryColor) {
+  Widget _buildLoginPrompt(ThemeProvider themeProvider) {
     return Scaffold(
       body: Center(
         child: Padding(
@@ -164,10 +166,16 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.library_music_rounded,
-                size: 80,
-                color: primaryColor,
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [themeProvider.primaryColor, themeProvider.primaryColor.withOpacity(0.7)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.library_music_rounded, size: 50, color: Colors.white),
               ),
               const SizedBox(height: 24),
               Text(
@@ -175,7 +183,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: themeProvider.textColor,
                 ),
               ),
               const SizedBox(height: 12),
@@ -184,7 +192,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  color: themeProvider.secondaryTextColor,
                 ),
               ),
               const SizedBox(height: 32),
@@ -196,8 +204,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: isDark ? Colors.black : Colors.white,
+                  backgroundColor: themeProvider.primaryColor,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
@@ -215,78 +223,83 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildPlaylistsSection(bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  Widget _buildPlaylistsSection(ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     final playlists = playlistProvider.playlists;
 
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           if (index == 0) {
-            // Liked Songs Card
-            return _buildLikedSongsCard(isDark, primaryColor, playlistProvider);
+            return _buildLikedSongsCard(themeProvider, playlistProvider);
           }
           
           if (index == 1) {
-            // Create Playlist Card
-            return _buildCreatePlaylistCard(isDark, primaryColor, playlistProvider);
+            return _buildCreatePlaylistCard(themeProvider, playlistProvider);
           }
 
           final playlist = playlists[index - 2];
-          return _buildPlaylistTile(playlist, isDark, primaryColor, playlistProvider);
+          return _buildPlaylistTile(playlist, themeProvider, playlistProvider);
         },
         childCount: playlists.length + 2,
       ),
     );
   }
 
-  Widget _buildLikedSongsCard(bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [primaryColor, Colors.purple],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _buildLikedSongsCard(ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: themeProvider.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
+        leading: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [themeProvider.primaryColor, Colors.purple],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
           ),
-          borderRadius: BorderRadius.circular(8),
+          child: const Icon(Icons.favorite, color: Colors.white, size: 28),
         ),
-        child: const Icon(Icons.favorite, color: Colors.white, size: 28),
-      ),
-      title: Text(
-        'Liked Songs',
-        style: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
+        title: Text(
+          'Liked Songs',
+          style: TextStyle(
+            color: themeProvider.textColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
         ),
-      ),
-      subtitle: Text(
-        'Playlist • ${playlistProvider.likedSongsCount} songs',
-        style: TextStyle(
-          color: isDark ? Colors.grey[500] : Colors.grey[600],
-          fontSize: 13,
+        subtitle: Text(
+          'Playlist • ${playlistProvider.likedSongsCount} songs',
+          style: TextStyle(
+            color: themeProvider.secondaryTextColor,
+            fontSize: 13,
+          ),
         ),
+        trailing: Icon(Icons.push_pin, color: themeProvider.primaryColor, size: 16),
+        onTap: () => _openLikedSongs(context, themeProvider, playlistProvider),
       ),
-      trailing: Icon(Icons.push_pin, color: primaryColor, size: 16),
-      onTap: () => _openLikedSongs(context, isDark, primaryColor, playlistProvider),
     );
   }
 
-  Widget _buildCreatePlaylistCard(bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  Widget _buildCreatePlaylistCard(ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GestureDetector(
-        onTap: () => _showCreatePlaylistDialog(context, isDark, primaryColor, playlistProvider),
+        onTap: () => _showCreatePlaylistDialog(context, themeProvider, playlistProvider),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1a1a1a) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            color: themeProvider.cardColor,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+              color: themeProvider.secondaryTextColor.withOpacity(0.2),
               width: 1,
             ),
           ),
@@ -296,12 +309,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF2a2a2a) : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
+                  color: themeProvider.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.add,
-                  color: isDark ? Colors.white70 : Colors.grey[600],
+                  color: themeProvider.primaryColor,
                   size: 28,
                 ),
               ),
@@ -312,7 +325,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                   Text(
                     'Create playlist',
                     style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: themeProvider.textColor,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -321,7 +334,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                   Text(
                     'Build a playlist with your favorite songs',
                     style: TextStyle(
-                      color: isDark ? Colors.grey : Colors.grey[600],
+                      color: themeProvider.secondaryTextColor,
                       fontSize: 12,
                     ),
                   ),
@@ -334,30 +347,35 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildPlaylistTile(PlaylistModel playlist, bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  Widget _buildPlaylistTile(PlaylistModel playlist, ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     return Dismissible(
       key: Key('playlist_${playlist.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: Colors.red,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       confirmDismiss: (direction) async {
         return await showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            backgroundColor: isDark ? const Color(0xFF1a1a1a) : Colors.white,
-            title: Text('Delete Playlist', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+            backgroundColor: themeProvider.cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text('Delete Playlist', style: TextStyle(color: themeProvider.textColor)),
             content: Text(
               'Are you sure you want to delete "${playlist.name}"?',
-              style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+              style: TextStyle(color: themeProvider.secondaryTextColor),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text('Cancel', style: TextStyle(color: themeProvider.secondaryTextColor)),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
@@ -370,61 +388,61 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
       onDismissed: (direction) {
         playlistProvider.deletePlaylist(playlist.id);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Deleted "${playlist.name}"')),
+          SnackBar(
+            content: Text('Deleted "${playlist.name}"'),
+            backgroundColor: themeProvider.primaryColor,
+          ),
         );
       },
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        leading: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF2a2a2a) : Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: playlist.coverUrl != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: playlist.coverUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Icon(
-                      Icons.music_note,
-                      color: isDark ? Colors.white24 : Colors.grey[400],
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: themeProvider.cardColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(12),
+          leading: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: themeProvider.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: playlist.coverUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CachedNetworkImage(
+                      imageUrl: playlist.coverUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                      errorWidget: (context, url, error) => Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
                     ),
-                    errorWidget: (context, url, error) => Icon(
-                      Icons.music_note,
-                      color: isDark ? Colors.white24 : Colors.grey[400],
-                    ),
-                  ),
-                )
-              : Icon(
-                  Icons.queue_music,
-                  color: isDark ? Colors.white54 : Colors.grey[600],
-                  size: 28,
-                ),
-        ),
-        title: Text(
-          playlist.name,
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w600,
-            fontSize: 15,
+                  )
+                : Icon(Icons.queue_music, color: themeProvider.primaryColor, size: 28),
           ),
-        ),
-        subtitle: Text(
-          'Playlist • ${playlist.songCount} songs',
-          style: TextStyle(
-            color: isDark ? Colors.grey[500] : Colors.grey[600],
-            fontSize: 13,
+          title: Text(
+            playlist.name,
+            style: TextStyle(
+              color: themeProvider.textColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
           ),
+          subtitle: Text(
+            'Playlist • ${playlist.songCount} songs',
+            style: TextStyle(
+              color: themeProvider.secondaryTextColor,
+              fontSize: 13,
+            ),
+          ),
+          onTap: () => _openPlaylist(context, playlist, themeProvider, playlistProvider),
         ),
-        onTap: () => _openPlaylist(context, playlist, isDark, primaryColor, playlistProvider),
       ),
     );
   }
 
-  Widget _buildLikedSongsSection(bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  Widget _buildLikedSongsSection(ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     final likedSongs = playlistProvider.likedSongs;
 
     if (likedSongs.isEmpty) {
@@ -434,12 +452,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
             padding: const EdgeInsets.all(32),
             child: Column(
               children: [
-                Icon(Icons.favorite_border, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[400]),
+                Icon(Icons.favorite_border, size: 64, color: themeProvider.secondaryTextColor),
                 const SizedBox(height: 16),
                 Text(
                   'No liked songs yet',
                   style: TextStyle(
-                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                    color: themeProvider.textColor,
                     fontSize: 18,
                   ),
                 ),
@@ -447,7 +465,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 Text(
                   'Tap the heart icon on any song to add it here',
                   style: TextStyle(
-                    color: isDark ? Colors.grey[600] : Colors.grey[500],
+                    color: themeProvider.secondaryTextColor,
                     fontSize: 14,
                   ),
                 ),
@@ -472,7 +490,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildRecentlyPlayedSection(bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  Widget _buildRecentlyPlayedSection(ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     final recentlyPlayed = playlistProvider.recentlyPlayed;
 
     if (recentlyPlayed.isEmpty) {
@@ -482,12 +500,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
             padding: const EdgeInsets.all(32),
             child: Column(
               children: [
-                Icon(Icons.history, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[400]),
+                Icon(Icons.history, size: 64, color: themeProvider.secondaryTextColor),
                 const SizedBox(height: 16),
                 Text(
                   'No recently played songs',
                   style: TextStyle(
-                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                    color: themeProvider.textColor,
                     fontSize: 18,
                   ),
                 ),
@@ -495,7 +513,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 Text(
                   'Start playing music to see your history',
                   style: TextStyle(
-                    color: isDark ? Colors.grey[600] : Colors.grey[500],
+                    color: themeProvider.secondaryTextColor,
                     fontSize: 14,
                   ),
                 ),
@@ -519,15 +537,15 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  void _showCreatePlaylistDialog(BuildContext context, bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  void _showCreatePlaylistDialog(BuildContext context, ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     final nameController = TextEditingController();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF1a1a1a) : Colors.white,
+      backgroundColor: themeProvider.cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Padding(
         padding: EdgeInsets.only(
@@ -544,7 +562,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey[600],
+                    color: themeProvider.secondaryTextColor.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -553,7 +571,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               Text(
                 'Create Playlist',
                 style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: themeProvider.textColor,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -562,14 +580,14 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               TextField(
                 controller: nameController,
                 autofocus: true,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                style: TextStyle(color: themeProvider.textColor),
                 decoration: InputDecoration(
                   hintText: 'Playlist name',
-                  hintStyle: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade600),
+                  hintStyle: TextStyle(color: themeProvider.secondaryTextColor),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF2a2a2a) : Colors.grey[100],
+                  fillColor: themeProvider.backgroundColor,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                 ),
@@ -584,16 +602,19 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                       await playlistProvider.createPlaylist(name);
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Created playlist "$name"')),
+                        SnackBar(
+                          content: Text('Created playlist "$name"'),
+                          backgroundColor: themeProvider.primaryColor,
+                        ),
                       );
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: isDark ? Colors.black : Colors.white,
+                    backgroundColor: themeProvider.primaryColor,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: const Text(
@@ -610,23 +631,22 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  void _openLikedSongs(BuildContext context, bool isDark, Color primaryColor, PlaylistProvider playlistProvider) {
+  void _openLikedSongs(BuildContext context, ThemeProvider themeProvider, PlaylistProvider playlistProvider) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => _PlaylistDetailScreen(
           title: 'Liked Songs',
           songs: playlistProvider.likedSongs,
-          coverGradient: [primaryColor, Colors.purple],
+          coverGradient: [themeProvider.primaryColor, Colors.purple],
           icon: Icons.favorite,
-          isDark: isDark,
-          primaryColor: primaryColor,
+          themeProvider: themeProvider,
         ),
       ),
     );
   }
 
-  void _openPlaylist(BuildContext context, PlaylistModel playlist, bool isDark, Color primaryColor, PlaylistProvider playlistProvider) async {
+  void _openPlaylist(BuildContext context, PlaylistModel playlist, ThemeProvider themeProvider, PlaylistProvider playlistProvider) async {
     final songs = await playlistProvider.getPlaylistSongs(playlist.id);
     Navigator.push(
       context,
@@ -636,8 +656,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
           songs: songs,
           coverUrl: playlist.coverUrl,
           playlistId: playlist.id,
-          isDark: isDark,
-          primaryColor: primaryColor,
+          themeProvider: themeProvider,
         ),
       ),
     );
@@ -651,8 +670,7 @@ class _PlaylistDetailScreen extends StatelessWidget {
   final List<Color>? coverGradient;
   final IconData? icon;
   final int? playlistId;
-  final bool isDark;
-  final Color primaryColor;
+  final ThemeProvider themeProvider;
 
   const _PlaylistDetailScreen({
     required this.title,
@@ -661,8 +679,7 @@ class _PlaylistDetailScreen extends StatelessWidget {
     this.coverGradient,
     this.icon,
     this.playlistId,
-    required this.isDark,
-    required this.primaryColor,
+    required this.themeProvider,
   });
 
   @override
@@ -673,12 +690,16 @@ class _PlaylistDetailScreen extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
-            backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+            backgroundColor: themeProvider.backgroundColor,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: themeProvider.textColor),
+              onPressed: () => Navigator.pop(context),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 title,
                 style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: themeProvider.textColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -691,20 +712,20 @@ class _PlaylistDetailScreen extends StatelessWidget {
                           end: Alignment.bottomRight,
                         )
                       : null,
-                  color: coverGradient == null ? (isDark ? const Color(0xFF2a2a2a) : Colors.grey[200]) : null,
+                  color: coverGradient == null ? themeProvider.cardColor : null,
                 ),
                 child: coverUrl != null
                     ? CachedNetworkImage(
                         imageUrl: coverUrl!,
                         fit: BoxFit.cover,
                         colorBlendMode: BlendMode.darken,
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black.withOpacity(0.3),
                       )
                     : Center(
                         child: Icon(
                           icon ?? Icons.queue_music,
                           size: 80,
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: Colors.white.withOpacity(0.8),
                         ),
                       ),
               ),
@@ -718,14 +739,14 @@ class _PlaylistDetailScreen extends StatelessWidget {
                   Text(
                     '${songs.length} songs',
                     style: TextStyle(
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      color: themeProvider.secondaryTextColor,
                       fontSize: 14,
                     ),
                   ),
                   const Spacer(),
                   if (songs.isNotEmpty)
-                    IconButton(
-                      onPressed: () {
+                    GestureDetector(
+                      onTap: () {
                         final player = Provider.of<MusicPlayerProvider>(context, listen: false);
                         player.playSong(songs.first, playlist: songs);
                         Navigator.push(
@@ -733,18 +754,21 @@ class _PlaylistDetailScreen extends StatelessWidget {
                           MaterialPageRoute(builder: (context) => const PlayerScreen()),
                         );
                       },
-                      icon: Container(
+                      child: Container(
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: primaryColor,
+                          color: themeProvider.primaryColor,
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: themeProvider.primaryColor.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons.play_arrow,
-                          color: isDark ? Colors.black : Colors.white,
-                          size: 32,
-                        ),
+                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
                       ),
                     ),
                 ],
@@ -758,16 +782,12 @@ class _PlaylistDetailScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(32),
                   child: Column(
                     children: [
-                      Icon(
-                        Icons.music_off,
-                        size: 64,
-                        color: isDark ? Colors.grey[700] : Colors.grey[400],
-                      ),
+                      Icon(Icons.music_off, size: 64, color: themeProvider.secondaryTextColor),
                       const SizedBox(height: 16),
                       Text(
                         'No songs yet',
                         style: TextStyle(
-                          color: isDark ? Colors.grey[500] : Colors.grey[600],
+                          color: themeProvider.textColor,
                           fontSize: 18,
                         ),
                       ),
@@ -775,7 +795,7 @@ class _PlaylistDetailScreen extends StatelessWidget {
                       Text(
                         'Add songs to this playlist from search',
                         style: TextStyle(
-                          color: isDark ? Colors.grey[600] : Colors.grey[500],
+                          color: themeProvider.secondaryTextColor,
                           fontSize: 14,
                         ),
                       ),

@@ -19,8 +19,10 @@ class SongCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-    final primaryColor = themeProvider.primaryColor;
+    final cardColor = themeProvider.cardColor;
+    final accentColor = themeProvider.primaryColor;
+    final textColor = themeProvider.textColor;
+    final secondaryText = themeProvider.secondaryTextColor;
     
     return GestureDetector(
       onTap: () {
@@ -42,45 +44,45 @@ class SongCard extends StatelessWidget {
                   height: 150,
                   width: 150,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.15),
+                        color: accentColor.withOpacity(0.15),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     child: song.albumArt != null
                         ? CachedNetworkImage(
                             imageUrl: song.albumArt!,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
-                              color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
+                              color: cardColor,
                               child: Center(
                                 child: Icon(
                                   Icons.music_note,
-                                  color: isDark ? Colors.white24 : Colors.grey[400],
+                                  color: secondaryText,
                                   size: 40,
                                 ),
                               ),
                             ),
                             errorWidget: (context, url, error) => Container(
-                              color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
+                              color: cardColor,
                               child: Icon(
                                 Icons.music_note,
-                                color: isDark ? Colors.white24 : Colors.grey[400],
+                                color: secondaryText,
                                 size: 40,
                               ),
                             ),
                           )
                         : Container(
-                            color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[200],
+                            color: cardColor,
                             child: Icon(
                               Icons.music_note,
-                              color: isDark ? Colors.white24 : Colors.grey[400],
+                              color: secondaryText,
                               size: 40,
                             ),
                           ),
@@ -94,19 +96,19 @@ class SongCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: primaryColor,
+                      color: accentColor,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.4),
+                          color: accentColor.withOpacity(0.4),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.play_arrow_rounded,
-                      color: isDark ? Colors.black : Colors.white,
+                      color: Colors.white,
                       size: 28,
                     ),
                   ),
@@ -118,7 +120,7 @@ class SongCard extends StatelessWidget {
             Text(
               song.title,
               style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
+                color: textColor,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -130,7 +132,7 @@ class SongCard extends StatelessWidget {
             Text(
               song.artist,
               style: TextStyle(
-                color: isDark ? Colors.grey[500] : Colors.grey[600],
+                color: secondaryText,
                 fontSize: 12,
               ),
               maxLines: 1,

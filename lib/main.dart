@@ -15,7 +15,7 @@ void main() {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
     ),
   );
   runApp(const MyApp());
@@ -44,14 +44,13 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          // Update system UI based on theme
           SystemChrome.setSystemUIOverlayStyle(
             SystemUiOverlayStyle(
               statusBarColor: Colors.transparent,
               statusBarIconBrightness: themeProvider.isDarkMode 
                   ? Brightness.light 
                   : Brightness.dark,
-              systemNavigationBarColor: themeProvider.backgroundColor,
+              systemNavigationBarColor: themeProvider.navBarColor,
             ),
           );
           
@@ -86,8 +85,6 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-    final primaryColor = themeProvider.primaryColor;
     
     return Scaffold(
       extendBody: true,
@@ -101,43 +98,55 @@ class _MainScreenState extends State<MainScreen> {
           const MiniPlayer(),
           Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  themeProvider.backgroundColor.withOpacity(0.9),
-                  themeProvider.backgroundColor,
-                ],
-              ),
+              color: themeProvider.navBarColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            child: NavigationBar(
-              elevation: 0,
-              height: 65,
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (index) {
-                setState(() => _currentIndex = index);
-              },
-              destinations: [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined, color: isDark ? Colors.grey[500] : Colors.grey[600]),
-                  selectedIcon: Icon(Icons.home_rounded, color: primaryColor),
-                  label: 'Home',
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNavItem(0, Icons.music_note_outlined, Icons.music_note, 'Music', themeProvider),
+                    _buildNavItem(1, Icons.search_outlined, Icons.search, 'Search', themeProvider),
+                    _buildNavItem(2, Icons.library_music_outlined, Icons.library_music, 'Library', themeProvider),
+                  ],
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.search_rounded, color: isDark ? Colors.grey[500] : Colors.grey[600]),
-                  selectedIcon: Icon(Icons.search_rounded, color: primaryColor),
-                  label: 'Search',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.library_music_outlined, color: isDark ? Colors.grey[500] : Colors.grey[600]),
-                  selectedIcon: Icon(Icons.library_music_rounded, color: primaryColor),
-                  label: 'Library',
-                ),
-              ],
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label, ThemeProvider themeProvider) {
+    final isSelected = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? activeIcon : icon,
+              color: isSelected ? Colors.white : Colors.white60,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white60,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

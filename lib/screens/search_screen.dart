@@ -45,12 +45,26 @@ class _SearchScreenState extends State<SearchScreen> {
       _hasSearched = true;
     });
 
-    final results = await _apiService.searchSongs(query);
+    try {
+      final results = await _apiService.searchSongs(query).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => <SongModel>[],
+      );
 
-    setState(() {
-      _searchResults = results;
-      _isLoading = false;
-    });
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _searchByGenre(String genre) {
@@ -68,7 +82,10 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
+    final textColor = themeProvider.textColor;
+    final secondaryText = themeProvider.secondaryTextColor;
+    final cardColor = themeProvider.cardColor;
+    final accentColor = themeProvider.primaryColor;
     
     return Scaffold(
       body: SafeArea(
@@ -83,7 +100,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: textColor,
                 ),
               ),
             ),
@@ -91,64 +108,79 @@ class _SearchScreenState extends State<SearchScreen> {
             // Search Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: TextField(
-                controller: _searchController,
-                focusNode: _focusNode,
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
-                  fontSize: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accentColor.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                decoration: InputDecoration(
-                  hintText: 'What do you want to listen to?',
-                  hintMaxLines: 1,
-                  hintStyle: TextStyle(
-                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _focusNode,
+                  style: TextStyle(
+                    color: textColor,
                     fontSize: 16,
                   ),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: isDark ? Colors.white70 : Colors.grey[600],
+                  decoration: InputDecoration(
+                    hintText: 'What do you want to listen to?',
+                    hintMaxLines: 1,
+                    hintStyle: TextStyle(
+                      color: secondaryText,
+                      fontSize: 16,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: accentColor,
+                    ),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(
+                              Icons.clear,
+                              color: secondaryText,
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchResults = [];
+                                _hasSearched = false;
+                              });
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: cardColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: accentColor, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(
-                            Icons.clear,
-                            color: isDark ? Colors.white70 : Colors.grey[600],
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                              _searchResults = [];
-                              _hasSearched = false;
-                            });
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: isDark ? const Color(0xFF2a2a2a) : Colors.grey[200],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  onChanged: (value) => setState(() {}),
+                  onSubmitted: _search,
+                  textInputAction: TextInputAction.search,
                 ),
-                onChanged: (value) => setState(() {}),
-                onSubmitted: _search,
-                textInputAction: TextInputAction.search,
               ),
             ),
 
             // Content
             Expanded(
-              child: _hasSearched ? _buildSearchResults(isDark) : _buildGenreGrid(isDark),
+              child: _hasSearched 
+                  ? _buildSearchResults(themeProvider) 
+                  : _buildGenreGrid(themeProvider),
             ),
           ],
         ),
@@ -156,7 +188,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildGenreGrid(bool isDark) {
+  Widget _buildGenreGrid(ThemeProvider themeProvider) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -167,7 +199,7 @@ class _SearchScreenState extends State<SearchScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+              color: themeProvider.textColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -183,7 +215,7 @@ class _SearchScreenState extends State<SearchScreen> {
             itemCount: _genres.length,
             itemBuilder: (context, index) {
               final genre = _genres[index];
-              return _buildGenreCard(genre);
+              return _buildGenreCard(genre, themeProvider);
             },
           ),
           const SizedBox(height: 120),
@@ -192,7 +224,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildGenreCard(Map<String, dynamic> genre) {
+  Widget _buildGenreCard(Map<String, dynamic> genre, ThemeProvider themeProvider) {
     return GestureDetector(
       onTap: () => _searchByGenre(genre['name']),
       child: Container(
@@ -205,7 +237,14 @@ class _SearchScreenState extends State<SearchScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: (genre['color'] as Color).withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Stack(
           children: [
@@ -217,7 +256,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 child: Icon(
                   genre['icon'],
                   size: 60,
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.white.withOpacity(0.2),
                 ),
               ),
             ),
@@ -238,21 +277,21 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildSearchResults(bool isDark) {
+  Widget _buildSearchResults(ThemeProvider themeProvider) {
     if (_isLoading) {
       return ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: 8,
         itemBuilder: (context, index) {
           return Shimmer.fromColors(
-            baseColor: isDark ? const Color(0xFF1a1a1a) : Colors.grey[300]!,
-            highlightColor: isDark ? const Color(0xFF2a2a2a) : Colors.grey[100]!,
+            baseColor: themeProvider.cardColor,
+            highlightColor: themeProvider.backgroundColor,
             child: Container(
               height: 70,
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1a1a1a) : Colors.grey[300],
-                borderRadius: BorderRadius.circular(8),
+                color: themeProvider.cardColor,
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
           );
@@ -265,12 +304,12 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[400]),
+            Icon(Icons.search_off, size: 64, color: themeProvider.secondaryTextColor),
             const SizedBox(height: 16),
             Text(
               'No results found',
               style: TextStyle(
-                color: isDark ? Colors.grey[500] : Colors.grey[600],
+                color: themeProvider.textColor,
                 fontSize: 18,
               ),
             ),
@@ -278,7 +317,7 @@ class _SearchScreenState extends State<SearchScreen> {
             Text(
               'Try different keywords',
               style: TextStyle(
-                color: isDark ? Colors.grey[600] : Colors.grey[500],
+                color: themeProvider.secondaryTextColor,
                 fontSize: 14,
               ),
             ),
@@ -289,7 +328,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      itemCount: _searchResults.length + 1, // +1 for header
+      itemCount: _searchResults.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
           return Padding(
@@ -297,7 +336,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: Text(
               '${_searchResults.length} results',
               style: TextStyle(
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                color: themeProvider.secondaryTextColor,
                 fontSize: 14,
               ),
             ),

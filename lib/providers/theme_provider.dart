@@ -3,15 +3,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 
 class ThemeProvider extends ChangeNotifier {
-  AppThemeMode _themeMode = AppThemeMode.defaultTheme;
+  AppColorScheme _colorScheme = AppColorScheme.warmYellow;
   
-  AppThemeMode get themeMode => _themeMode;
-  ThemeData get theme => AppTheme.getTheme(_themeMode);
-  bool get isDarkMode => AppTheme.isDarkMode(_themeMode);
-  Color get primaryColor => AppTheme.getPrimaryColor(_themeMode);
-  Color get backgroundColor => AppTheme.getBackgroundColor(_themeMode);
-  Color get cardColor => AppTheme.getCardColor(_themeMode);
-  Color get textColor => AppTheme.getTextColor(_themeMode);
+  AppColorScheme get colorScheme => _colorScheme;
+  ThemeData get theme => AppTheme.getTheme(_colorScheme);
+  bool get isDarkMode => AppTheme.isDarkScheme(_colorScheme);
+  Color get primaryColor => AppTheme.getAccentColor(_colorScheme);
+  Color get backgroundColor => AppTheme.getBackgroundColor(_colorScheme);
+  Color get cardColor => AppTheme.getCardColor(_colorScheme);
+  Color get textColor => AppTheme.getTextColor(_colorScheme);
+  Color get secondaryTextColor => AppTheme.getSecondaryTextColor(_colorScheme);
+  Color get navBarColor => AppTheme.getNavBarColor(_colorScheme);
 
   ThemeProvider() {
     _loadTheme();
@@ -19,48 +21,25 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt('themeMode') ?? 0;
-    _themeMode = AppThemeMode.values[themeIndex.clamp(0, AppThemeMode.values.length - 1)];
+    final schemeIndex = prefs.getInt('colorScheme') ?? 0;
+    _colorScheme = AppColorScheme.values[schemeIndex.clamp(0, AppColorScheme.values.length - 1)];
     notifyListeners();
   }
 
-  Future<void> setTheme(AppThemeMode mode) async {
-    _themeMode = mode;
+  Future<void> setColorScheme(AppColorScheme scheme) async {
+    _colorScheme = scheme;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeMode', mode.index);
+    await prefs.setInt('colorScheme', scheme.index);
     notifyListeners();
   }
 
-  String getThemeName(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.defaultTheme:
-        return 'Default (Spotify)';
-      case AppThemeMode.pixelated:
-        return 'Pixelated';
-      case AppThemeMode.lite:
-        return 'Lite';
-    }
+  String getSchemeName(AppColorScheme scheme) {
+    return AppTheme.getSchemeName(scheme);
   }
 
-  String getThemeDescription(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.defaultTheme:
-        return 'Dark theme with Spotify-like aesthetics';
-      case AppThemeMode.pixelated:
-        return 'Retro pixel art style with 8-bit feel';
-      case AppThemeMode.lite:
-        return 'Clean, minimal light theme';
-    }
+  Color getSchemePreviewColor(AppColorScheme scheme) {
+    return AppTheme.getSchemePreviewColor(scheme);
   }
 
-  IconData getThemeIcon(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.defaultTheme:
-        return Icons.dark_mode;
-      case AppThemeMode.pixelated:
-        return Icons.grid_4x4;
-      case AppThemeMode.lite:
-        return Icons.light_mode;
-    }
-  }
+  List<AppColorScheme> get availableSchemes => AppColorScheme.values;
 }
