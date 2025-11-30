@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/song_model.dart';
 
@@ -19,7 +20,6 @@ class MusicApiService {
   // Make request with proper error handling
   Future<Map<String, dynamic>?> _fetchJson(String url) async {
     try {
-      print('Fetching: $url');
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -30,11 +30,10 @@ class MusicApiService {
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('Response status: ${response.statusCode}');
         return data;
       }
     } catch (e) {
-      print('Request failed for $url: $e');
+      debugPrint('Request failed for $url: $e');
     }
     return null;
   }
@@ -47,12 +46,10 @@ class MusicApiService {
       if (data != null) {
         // Check for success in different API response formats
         if (data['success'] == true || data['status'] == 'SUCCESS' || data['data'] != null || data['results'] != null) {
-          print('SUCCESS: Got data from $baseUrl');
           return data;
         }
       }
     }
-    print('JioSaavn API returned no data or failed. Response: null');
     return null;
   }
 
@@ -75,8 +72,6 @@ class MusicApiService {
       results = data['songs'];
     }
     
-    print('Parsing ${results.length} results from JioSaavn');
-    
     if (results.isEmpty) return [];
     
     final songs = <SongModel>[];
@@ -87,11 +82,10 @@ class MusicApiService {
           songs.add(parsed);
         }
       } catch (e) {
-        print('Error parsing song: $e');
+        debugPrint('Error parsing song: $e');
       }
     }
     
-    print('Successfully parsed ${songs.length} songs with valid URLs');
     return songs;
   }
 
@@ -124,8 +118,6 @@ class MusicApiService {
         }
       }
       
-      print('JioSaavn APIs failed, falling back to iTunes (30-sec previews only)');
-      
       // Fallback to iTunes if JioSaavn fails (30-sec previews)
       final itunesData = await _fetchJson(
         '$_itunesBaseUrl/search?term=${Uri.encodeComponent(query)}&media=music&entity=song&limit=30'
@@ -133,14 +125,13 @@ class MusicApiService {
       
       if (itunesData != null && itunesData['results'] != null) {
         final List<dynamic> results = itunesData['results'] ?? [];
-        print('Found ${results.length} songs from iTunes (30-sec previews)');
         return results
             .where((song) => song['kind'] == 'song')
             .map((song) => SongModel.fromItunesJson(song))
             .toList();
       }
     } catch (e) {
-      print('Search error: $e');
+      debugPrint('Search error: $e');
     }
     return [];
   }
@@ -157,7 +148,7 @@ class MusicApiService {
         }
       }
     } catch (e) {
-      print('Get song error: $e');
+      debugPrint('Get song error: $e');
     }
     return null;
   }
@@ -174,7 +165,7 @@ class MusicApiService {
         return _parseSaavnResults(data);
       }
     } catch (e) {
-      print('Get songs by IDs error: $e');
+      debugPrint('Get songs by IDs error: $e');
     }
     return [];
   }
@@ -189,7 +180,7 @@ class MusicApiService {
         if (songs.isNotEmpty) return songs;
       }
     } catch (e) {
-      print('Trending songs error: $e');
+      debugPrint('Trending songs error: $e');
     }
     return searchSongs('top hits 2024');
   }
@@ -204,7 +195,7 @@ class MusicApiService {
         if (songs.isNotEmpty) return songs;
       }
     } catch (e) {
-      print('New releases error: $e');
+      debugPrint('New releases error: $e');
     }
     return searchSongs('new songs 2024');
   }
@@ -223,7 +214,7 @@ class MusicApiService {
         return _parseSaavnResults(data);
       }
     } catch (e) {
-      print('Album songs error: $e');
+      debugPrint('Album songs error: $e');
     }
     return [];
   }
@@ -237,7 +228,7 @@ class MusicApiService {
         return _parseSaavnResults(data);
       }
     } catch (e) {
-      print('Artist songs error: $e');
+      debugPrint('Artist songs error: $e');
     }
     return [];
   }
@@ -251,7 +242,7 @@ class MusicApiService {
         return _parseSaavnResults(data);
       }
     } catch (e) {
-      print('Playlist songs error: $e');
+      debugPrint('Playlist songs error: $e');
     }
     return [];
   }
@@ -275,7 +266,7 @@ class MusicApiService {
         return results.map((song) => (song['name'] ?? song['title'] ?? '') as String).where((s) => s.isNotEmpty).toList();
       }
     } catch (e) {
-      print('Suggestions error: $e');
+      debugPrint('Suggestions error: $e');
     }
     return [];
   }

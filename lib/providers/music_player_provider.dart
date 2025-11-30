@@ -1,14 +1,22 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 import '../models/song_model.dart';
 
 class MusicPlayerProvider extends ChangeNotifier {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  AudioPlayer _audioPlayer = AudioPlayer();
+  AudioPlayer? _crossfadePlayer; // Secondary player for crossfade
+  
+  // Stream subscriptions for cleanup
+  StreamSubscription? _playerStateSubscription;
+  StreamSubscription? _positionSubscription;
+  StreamSubscription? _durationSubscription;
+  StreamSubscription? _processingStateSubscription;
   
   SongModel? _currentSong;
   List<SongModel> _playlist = [];
-  List<SongModel> _queue = [];  // User-managed queue
+  List<SongModel> _queue = [];
   int _currentIndex = 0;
   bool _isPlaying = false;
   bool _isLoading = false;
@@ -17,6 +25,15 @@ class MusicPlayerProvider extends ChangeNotifier {
   bool _isShuffleOn = false;
   LoopMode _loopMode = LoopMode.off;
   double _volume = 1.0;
+  
+  // Crossfade settings
+  bool _crossfadeEnabled = false;
+  int _crossfadeDuration = 5;
+  bool _isCrossfading = false;
+  
+  // Volume normalization
+  bool _volumeNormalization = false;
+  double _normalizedVolume = 1.0;
 
   // Getters
   SongModel? get currentSong => _currentSong;
@@ -33,40 +50,57 @@ class MusicPlayerProvider extends ChangeNotifier {
   AudioPlayer get audioPlayer => _audioPlayer;
   bool get hasQueue => _queue.isNotEmpty;
   int get queueLength => _queue.length;
+  bool get crossfadeEnabled => _crossfadeEnabled;
+  int get crossfadeDuration => _crossfadeDuration;
+  bool get volumeNormalization => _volumeNormalization;
 
   MusicPlayerProvider() {
     _initializePlayer();
   }
 
   Future<void> _initializePlayer() async {
-    // Configure audio session
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
     } catch (e) {
-      print('Error configuring audio session: $e');
+      debugPrint('Error configuring audio session: $e');
     }
 
-    // Listen to player state changes
-    _audioPlayer.playerStateStream.listen((state) {
+    _setupPlayerListeners(_audioPlayer);
+  }
+
+  void _setupPlayerListeners(AudioPlayer player) {
+    // Cancel existing subscriptions
+    _playerStateSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _processingStateSubscription?.cancel();
+
+    _playerStateSubscription = player.playerStateStream.listen((state) {
       _isPlaying = state.playing;
       notifyListeners();
     });
 
-    // Listen to position changes
-    _audioPlayer.positionStream.listen((pos) {
+    _positionSubscription = player.positionStream.listen((pos) {
       _position = pos;
+      
+      // Check for crossfade trigger
+      if (_crossfadeEnabled && !_isCrossfading && _duration.inSeconds > 0) {
+        final remaining = _duration.inSeconds - pos.inSeconds;
+        if (remaining <= _crossfadeDuration && remaining > 0) {
+          _startCrossfade();
+        }
+      }
+      
       notifyListeners();
     });
 
-    // Listen to duration changes
-    _audioPlayer.durationStream.listen((dur) {
+    _durationSubscription = player.durationStream.listen((dur) {
       _duration = dur ?? Duration.zero;
       notifyListeners();
     });
 
-    // Listen to when song completes
-    _audioPlayer.processingStateStream.listen((state) {
+    _processingStateSubscription = player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
         _handleSongComplete();
       }
@@ -76,15 +110,143 @@ class MusicPlayerProvider extends ChangeNotifier {
     });
   }
 
-  // Play a song
+  // Configure crossfade
+  void setCrossfade(bool enabled, int durationSeconds) {
+    _crossfadeEnabled = enabled;
+    _crossfadeDuration = durationSeconds.clamp(1, 12);
+    notifyListeners();
+  }
+
+  // Configure volume normalization
+  void setVolumeNormalization(bool enabled) {
+    _volumeNormalization = enabled;
+    if (enabled) {
+      _applyVolumeNormalization();
+    } else {
+      _audioPlayer.setVolume(_volume);
+    }
+    notifyListeners();
+  }
+
+  void _applyVolumeNormalization() {
+    // Simple normalization - reduces loud peaks
+    // For true normalization, you'd analyze audio loudness (LUFS)
+    _normalizedVolume = _volume * 0.85;
+    _audioPlayer.setVolume(_normalizedVolume);
+  }
+
+  Future<void> _startCrossfade() async {
+    if (_isCrossfading || _loopMode == LoopMode.one) return;
+    
+    final nextSong = _getNextSongForCrossfade();
+    if (nextSong == null) return;
+
+    _isCrossfading = true;
+    
+    try {
+      // Create secondary player for crossfade
+      _crossfadePlayer = AudioPlayer();
+      
+      final url = nextSong.playableUrl;
+      if (url.isEmpty) {
+        _isCrossfading = false;
+        return;
+      }
+
+      if (nextSong.isLocal) {
+        await _crossfadePlayer!.setFilePath(url);
+      } else {
+        await _crossfadePlayer!.setUrl(url);
+      }
+
+      // Start at 0 volume
+      await _crossfadePlayer!.setVolume(0);
+      await _crossfadePlayer!.play();
+
+      // Animate volume crossfade
+      final steps = _crossfadeDuration * 10; // 10 steps per second
+      const stepDuration = Duration(milliseconds: 100);
+      
+      for (int i = 0; i <= steps; i++) {
+        if (!_isCrossfading) break;
+        
+        final progress = i / steps;
+        final fadeOutVolume = _volume * (1 - progress);
+        final fadeInVolume = _volume * progress;
+        
+        await _audioPlayer.setVolume(fadeOutVolume);
+        await _crossfadePlayer?.setVolume(fadeInVolume);
+        
+        await Future.delayed(stepDuration);
+      }
+
+      // Complete the crossfade - swap the players
+      if (_isCrossfading && _crossfadePlayer != null) {
+        // Store reference to old player for disposal
+        final oldPlayer = _audioPlayer;
+        
+        // Swap to the new player
+        _audioPlayer = _crossfadePlayer!;
+        _crossfadePlayer = null;
+        
+        // Update current song and playlist state
+        _currentSong = nextSong;
+        if (_queue.isNotEmpty) {
+          _queue.removeAt(0);
+        } else if (_playlist.isNotEmpty) {
+          _currentIndex = (_currentIndex + 1) % _playlist.length;
+        }
+        
+        // Ensure volume is set correctly
+        if (_volumeNormalization) {
+          _applyVolumeNormalization();
+        } else {
+          await _audioPlayer.setVolume(_volume);
+        }
+        
+        // Setup listeners on the new player
+        _setupPlayerListeners(_audioPlayer);
+        
+        // Stop and dispose old player
+        await oldPlayer.stop();
+        await oldPlayer.dispose();
+      }
+    } catch (e) {
+      debugPrint('Crossfade error: $e');
+      _crossfadePlayer?.dispose();
+      _crossfadePlayer = null;
+    } finally {
+      _isCrossfading = false;
+      notifyListeners();
+    }
+  }
+
+  SongModel? _getNextSongForCrossfade() {
+    if (_queue.isNotEmpty) {
+      return _queue.first;
+    }
+    if (_playlist.isEmpty) return null;
+    
+    final nextIndex = (_currentIndex + 1) % _playlist.length;
+    if (nextIndex == 0 && _loopMode == LoopMode.off) return null;
+    
+    return _playlist[nextIndex];
+  }
+
   Future<void> playSong(SongModel song, {List<SongModel>? playlist}) async {
     try {
+      // Cancel any ongoing crossfade
+      _isCrossfading = false;
+      _crossfadePlayer?.stop();
+      _crossfadePlayer?.dispose();
+      _crossfadePlayer = null;
+      
       _isLoading = true;
       notifyListeners();
 
       if (playlist != null) {
-        _playlist = playlist;
-        _currentIndex = playlist.indexOf(song);
+        _playlist = List.from(playlist);
+        _currentIndex = _playlist.indexWhere((s) => s.id == song.id);
         if (_currentIndex == -1) _currentIndex = 0;
       }
 
@@ -92,7 +254,7 @@ class MusicPlayerProvider extends ChangeNotifier {
 
       final url = song.playableUrl;
       if (url.isEmpty) {
-        print('No playable URL for song: ${song.title}');
+        debugPrint('No playable URL for song: ${song.title}');
         _isLoading = false;
         notifyListeners();
         return;
@@ -104,15 +266,18 @@ class MusicPlayerProvider extends ChangeNotifier {
         await _audioPlayer.setUrl(url);
       }
 
+      if (_volumeNormalization) {
+        _applyVolumeNormalization();
+      }
+
       await _audioPlayer.play();
     } catch (e) {
-      print('Error playing song: $e');
+      debugPrint('Error playing song: $e');
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Toggle play/pause
   Future<void> togglePlayPause() async {
     if (_isPlaying) {
       await _audioPlayer.pause();
@@ -121,32 +286,26 @@ class MusicPlayerProvider extends ChangeNotifier {
     }
   }
 
-  // Seek to position
   Future<void> seek(Duration position) async {
     await _audioPlayer.seek(position);
   }
 
-  // ========== QUEUE MANAGEMENT ==========
-
-  // Add song to the end of the queue
+  // Queue management
   void addToQueue(SongModel song) {
     _queue.add(song);
     notifyListeners();
   }
 
-  // Add song to play next (front of queue)
   void addToQueueNext(SongModel song) {
     _queue.insert(0, song);
     notifyListeners();
   }
 
-  // Add multiple songs to queue
   void addAllToQueue(List<SongModel> songs) {
     _queue.addAll(songs);
     notifyListeners();
   }
 
-  // Remove song from queue by index
   void removeFromQueue(int index) {
     if (index >= 0 && index < _queue.length) {
       _queue.removeAt(index);
@@ -154,45 +313,29 @@ class MusicPlayerProvider extends ChangeNotifier {
     }
   }
 
-  // Remove specific song from queue
   void removeFromQueueBySong(SongModel song) {
     _queue.removeWhere((s) => s.id == song.id);
     notifyListeners();
   }
 
-  // Clear entire queue
   void clearQueue() {
     _queue.clear();
     notifyListeners();
   }
 
-  // Reorder queue items
   void reorderQueue(int oldIndex, int newIndex) {
-    if (oldIndex < newIndex) {
-      newIndex -= 1;
-    }
+    if (oldIndex < newIndex) newIndex -= 1;
     final song = _queue.removeAt(oldIndex);
     _queue.insert(newIndex, song);
     notifyListeners();
   }
 
-  // Move a song within the queue
-  void moveInQueue(int from, int to) {
-    if (from >= 0 && from < _queue.length && to >= 0 && to < _queue.length) {
-      final song = _queue.removeAt(from);
-      _queue.insert(to, song);
-      notifyListeners();
-    }
-  }
+  bool isInQueue(SongModel song) => _queue.any((s) => s.id == song.id);
 
-  // Check if song is in queue
-  bool isInQueue(SongModel song) {
-    return _queue.any((s) => s.id == song.id);
-  }
-
-  // Play next song from queue or playlist
   Future<void> playNext() async {
-    // First check if there's anything in the user queue
+    // Skip if crossfade is handling transition
+    if (_isCrossfading) return;
+    
     if (_queue.isNotEmpty) {
       final nextSong = _queue.removeAt(0);
       notifyListeners();
@@ -200,7 +343,6 @@ class MusicPlayerProvider extends ChangeNotifier {
       return;
     }
 
-    // Otherwise continue with playlist
     if (_playlist.isEmpty) return;
 
     if (_isShuffleOn) {
@@ -216,11 +358,9 @@ class MusicPlayerProvider extends ChangeNotifier {
     await playSong(_playlist[_currentIndex]);
   }
 
-  // Play previous song
   Future<void> playPrevious() async {
     if (_playlist.isEmpty) return;
 
-    // If more than 3 seconds in, restart song
     if (_position.inSeconds > 3) {
       await seek(Duration.zero);
       return;
@@ -238,7 +378,6 @@ class MusicPlayerProvider extends ChangeNotifier {
     await playSong(_playlist[_currentIndex]);
   }
 
-  // Toggle shuffle
   void toggleShuffle() {
     _isShuffleOn = !_isShuffleOn;
     if (_isShuffleOn && _playlist.isNotEmpty) {
@@ -249,7 +388,6 @@ class MusicPlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Toggle loop mode
   void toggleLoopMode() {
     switch (_loopMode) {
       case LoopMode.off:
@@ -268,8 +406,12 @@ class MusicPlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Handle song completion
   void _handleSongComplete() {
+    if (_crossfadeEnabled && !_isCrossfading) {
+      // Crossfade should have already handled this
+      return;
+    }
+    
     if (_loopMode == LoopMode.one) {
       seek(Duration.zero);
       _audioPlayer.play();
@@ -278,14 +420,16 @@ class MusicPlayerProvider extends ChangeNotifier {
     }
   }
 
-  // Set volume
   Future<void> setVolume(double volume) async {
     _volume = volume;
-    await _audioPlayer.setVolume(volume);
+    if (_volumeNormalization) {
+      _applyVolumeNormalization();
+    } else {
+      await _audioPlayer.setVolume(volume);
+    }
     notifyListeners();
   }
 
-  // Stop playback
   Future<void> stop() async {
     await _audioPlayer.stop();
     _currentSong = null;
@@ -294,6 +438,11 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _playerStateSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _processingStateSubscription?.cancel();
+    _crossfadePlayer?.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }

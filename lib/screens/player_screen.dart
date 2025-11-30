@@ -147,7 +147,7 @@ class PlayerScreen extends StatelessWidget {
 
         // Album Art
         Hero(
-          tag: 'album_art',
+          tag: 'album_art_${song.id}',
           child: Container(
             width: MediaQuery.of(context).size.width * 0.8,
             height: MediaQuery.of(context).size.width * 0.8,

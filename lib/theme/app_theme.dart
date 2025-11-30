@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 // Color scheme options for the app
 enum AppColorScheme {
@@ -174,6 +173,24 @@ class AppTheme {
     return getBackgroundColor(scheme);
   }
 
+  // Custom text style that works without Google Fonts for better performance
+  static TextStyle _getTextStyle({
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.normal,
+    required Color color,
+    double letterSpacing = 0,
+    double height = 1.2,
+  }) {
+    return TextStyle(
+      fontFamily: 'Nunito', // Fallback to system font
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      letterSpacing: letterSpacing,
+      height: height,
+    );
+  }
+
   // Build theme data based on color scheme
   static ThemeData getTheme(AppColorScheme scheme) {
     final bgColor = getBackgroundColor(scheme);
@@ -184,16 +201,23 @@ class AppTheme {
     final isDark = isDarkScheme(scheme);
     final navBarColor = getNavBarColor(scheme);
 
-    // Use Google Fonts Poppins
-    final textTheme = GoogleFonts.poppinsTextTheme(
-      TextTheme(
-        displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.5),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.3),
-        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: textColor),
-        bodyLarge: TextStyle(fontSize: 16, color: textColor),
-        bodyMedium: TextStyle(fontSize: 14, color: secondaryText),
-        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
-      ),
+    // Use system fonts with fallback for better performance and reliability
+    final textTheme = TextTheme(
+      displayLarge: _getTextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.5),
+      displayMedium: _getTextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.3),
+      displaySmall: _getTextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+      headlineLarge: _getTextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+      headlineMedium: _getTextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+      headlineSmall: _getTextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: textColor),
+      titleLarge: _getTextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: textColor),
+      titleMedium: _getTextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor),
+      titleSmall: _getTextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+      bodyLarge: _getTextStyle(fontSize: 16, color: textColor),
+      bodyMedium: _getTextStyle(fontSize: 14, color: secondaryText),
+      bodySmall: _getTextStyle(fontSize: 12, color: secondaryText),
+      labelLarge: _getTextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+      labelMedium: _getTextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
+      labelSmall: _getTextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: secondaryText),
     );
 
     return ThemeData(
@@ -201,6 +225,13 @@ class AppTheme {
       brightness: isDark ? Brightness.dark : Brightness.light,
       scaffoldBackgroundColor: bgColor,
       primaryColor: accentColor,
+      // Improve performance by reducing animation complexity
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       colorScheme: isDark
           ? ColorScheme.dark(
               primary: accentColor,
@@ -219,17 +250,18 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
+        scrolledUnderElevation: 0,
         iconTheme: IconThemeData(color: textColor),
-        titleTextStyle: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+        titleTextStyle: _getTextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: navBarColor,
         indicatorColor: accentColor.withOpacity(0.3),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white);
+            return _getTextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white);
           }
-          return GoogleFonts.poppins(fontSize: 12, color: Colors.white70);
+          return _getTextStyle(fontSize: 12, color: Colors.white70);
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -247,9 +279,10 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: accentColor,
           foregroundColor: Colors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-          textStyle: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: _getTextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -259,7 +292,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        hintStyle: GoogleFonts.poppins(color: secondaryText, fontSize: 14),
+        hintStyle: _getTextStyle(fontSize: 14, color: secondaryText),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       iconTheme: IconThemeData(color: textColor),
@@ -269,6 +302,13 @@ class AppTheme {
         inactiveTrackColor: accentColor.withOpacity(0.3),
         thumbColor: accentColor,
         overlayColor: accentColor.withOpacity(0.2),
+        trackHeight: 4,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+      ),
+      // Smooth scrolling physics
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(accentColor.withOpacity(0.5)),
+        radius: const Radius.circular(10),
       ),
     );
   }

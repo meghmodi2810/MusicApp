@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/song_model.dart';
 
@@ -23,7 +24,7 @@ class DeezerApiService {
             .toList();
       }
     } catch (e) {
-      print('Error searching tracks: $e');
+      debugPrint('Error searching tracks: $e');
     }
     return [];
   }
@@ -44,7 +45,7 @@ class DeezerApiService {
             .toList();
       }
     } catch (e) {
-      print('Error fetching charts: $e');
+      debugPrint('Error fetching charts: $e');
     }
     return [];
   }
@@ -67,7 +68,7 @@ class DeezerApiService {
         }
       }
     } catch (e) {
-      print('Error fetching genre tracks: $e');
+      debugPrint('Error fetching genre tracks: $e');
     }
     return [];
   }
@@ -88,7 +89,7 @@ class DeezerApiService {
             .toList();
       }
     } catch (e) {
-      print('Error fetching artist tracks: $e');
+      debugPrint('Error fetching artist tracks: $e');
     }
     return [];
   }
@@ -105,7 +106,7 @@ class DeezerApiService {
         return List<Map<String, dynamic>>.from(data['data'] ?? []);
       }
     } catch (e) {
-      print('Error fetching genres: $e');
+      debugPrint('Error fetching genres: $e');
     }
     return [];
   }

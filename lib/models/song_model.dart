@@ -45,10 +45,6 @@ class SongModel {
     String? streamUrl;
     final downloadUrls = json['downloadUrl'];
     
-    // Debug: print the downloadUrl structure
-    print('JioSaavn downloadUrl type: ${downloadUrls.runtimeType}');
-    print('JioSaavn downloadUrl: $downloadUrls');
-    
     if (downloadUrls != null) {
       if (downloadUrls is List && downloadUrls.isNotEmpty) {
         // Handle array format: [{"quality": "320kbps", "url": "..."}]
@@ -80,8 +76,6 @@ class SongModel {
     if (streamUrl == null || streamUrl.isEmpty) {
       streamUrl = json['url'] ?? json['media_url'] ?? json['perma_url'];
     }
-
-    print('Final streamUrl: $streamUrl');
 
     // Get album art - handle both array and string formats
     String? albumArt;

@@ -5,19 +5,26 @@ import 'providers/music_player_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/playlist_provider.dart';
+import 'providers/settings_provider.dart';
+import 'services/download_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/library_screen.dart';
 import 'widgets/mini_player.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize download service
+  await DownloadService().initialize();
+  
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+  
   runApp(const MyApp());
 }
 
@@ -30,7 +37,9 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => MusicPlayerProvider()),
+        ChangeNotifierProvider(create: (_) => DownloadService()),
         ChangeNotifierProxyProvider<AuthProvider, PlaylistProvider>(
           create: (_) => PlaylistProvider(),
           update: (_, authProvider, playlistProvider) {
@@ -42,8 +51,18 @@ class MyApp extends StatelessWidget {
           },
         ),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+      child: Consumer2<ThemeProvider, SettingsProvider>(
+        builder: (context, themeProvider, settingsProvider, child) {
+          // Sync crossfade settings with music player
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+            player.setCrossfade(
+              settingsProvider.crossfadeEnabled,
+              settingsProvider.crossfadeDuration,
+            );
+            player.setVolumeNormalization(settingsProvider.volumeNormalization);
+          });
+          
           SystemChrome.setSystemUIOverlayStyle(
             SystemUiOverlayStyle(
               statusBarColor: Colors.transparent,
@@ -58,6 +77,8 @@ class MyApp extends StatelessWidget {
             title: 'Melodify',
             debugShowCheckedModeBanner: false,
             theme: themeProvider.theme,
+            // Disable default animations for better performance
+            themeAnimationDuration: Duration.zero,
             home: const MainScreen(),
           );
         },
@@ -73,14 +94,32 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
+  late final PageController _pageController;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const SearchScreen(),
-    const LibraryScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onTabTapped(int index) {
+    if (_currentIndex != index) {
+      setState(() => _currentIndex = index);
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,9 +127,14 @@ class _MainScreenState extends State<MainScreen> {
     
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(), // Disable swipe for better performance
+        children: const [
+          HomeScreen(),
+          SearchScreen(),
+          LibraryScreen(),
+        ],
       ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
@@ -108,7 +152,7 @@ class _MainScreenState extends State<MainScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(0, Icons.music_note_outlined, Icons.music_note, 'Music', themeProvider),
+                    _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home', themeProvider),
                     _buildNavItem(1, Icons.search_outlined, Icons.search, 'Search', themeProvider),
                     _buildNavItem(2, Icons.library_music_outlined, Icons.library_music, 'Library', themeProvider),
                   ],
@@ -124,9 +168,11 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label, ThemeProvider themeProvider) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => _onTabTapped(index),
       behavior: HitTestBehavior.opaque,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
