@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'dart:async';
 import '../models/song_model.dart';
 import '../services/music_api_service.dart';
 import '../providers/theme_provider.dart';
@@ -21,29 +22,51 @@ class _SearchScreenState extends State<SearchScreen> {
   List<SongModel> _searchResults = [];
   bool _isLoading = false;
   bool _hasSearched = false;
+  Timer? _debounceTimer;
 
   final List<Map<String, dynamic>> _genres = [
-    {'name': 'Pop', 'color': const Color(0xFF8B5CF6), 'icon': Icons.music_note},
-    {'name': 'Hip-Hop', 'color': const Color(0xFFEC4899), 'icon': Icons.headphones},
-    {'name': 'Rock', 'color': const Color(0xFFEF4444), 'icon': Icons.electric_bolt},
-    {'name': 'EDM', 'color': const Color(0xFF06B6D4), 'icon': Icons.speaker},
-    {'name': 'R&B', 'color': const Color(0xFFF59E0B), 'icon': Icons.nightlife},
-    {'name': 'Jazz', 'color': const Color(0xFF10B981), 'icon': Icons.piano},
-    {'name': 'Classical', 'color': const Color(0xFF6366F1), 'icon': Icons.queue_music},
-    {'name': 'Bollywood', 'color': const Color(0xFFE11D48), 'icon': Icons.movie},
-    {'name': 'Punjabi', 'color': const Color(0xFFF97316), 'icon': Icons.celebration},
-    {'name': 'Lofi', 'color': const Color(0xFF14B8A6), 'icon': Icons.nights_stay},
-    {'name': 'Romantic', 'color': const Color(0xFFDB2777), 'icon': Icons.favorite},
-    {'name': 'Party', 'color': const Color(0xFF8B5CF6), 'icon': Icons.celebration},
+    {'name': 'Pop', 'color': const Color(0xFFE85D04), 'icon': Icons.music_note},
+    {'name': 'Rock', 'color': const Color(0xFFBF3100), 'icon': Icons.electric_bolt},
+    {'name': 'Jazz', 'color': const Color(0xFF8B2500), 'icon': Icons.piano},
+    {'name': 'Other', 'color': const Color(0xFF5C1A00), 'icon': Icons.library_music},
+    {'name': 'Hip-Hop', 'color': const Color(0xFFE85D04), 'icon': Icons.headphones},
+    {'name': 'EDM', 'color': const Color(0xFFBF3100), 'icon': Icons.speaker},
+    {'name': 'Classical', 'color': const Color(0xFF8B2500), 'icon': Icons.queue_music},
+    {'name': 'Bollywood', 'color': const Color(0xFF5C1A00), 'icon': Icons.movie},
+    {'name': 'Punjabi', 'color': const Color(0xFFE85D04), 'icon': Icons.celebration},
+    {'name': 'Lofi', 'color': const Color(0xFFBF3100), 'icon': Icons.nights_stay},
+    {'name': 'Romantic', 'color': const Color(0xFF8B2500), 'icon': Icons.favorite},
+    {'name': 'Party', 'color': const Color(0xFF5C1A00), 'icon': Icons.celebration},
   ];
 
-  Future<void> _search(String query) async {
-    if (query.trim().isEmpty) return;
+  // Debounced search - AJAX style
+  void _onSearchChanged(String query) {
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+    
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _hasSearched = false;
+        _isLoading = false;
+      });
+      return;
+    }
 
+    // Set loading state immediately for better UX
     setState(() {
       _isLoading = true;
       _hasSearched = true;
     });
+
+    // Debounce the actual search by 400ms
+    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+      _performSearch(query);
+    });
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.trim().isEmpty) return;
 
     try {
       final results = await _apiService.searchSongs(query).timeout(
@@ -51,7 +74,7 @@ class _SearchScreenState extends State<SearchScreen> {
         onTimeout: () => <SongModel>[],
       );
 
-      if (mounted) {
+      if (mounted && _searchController.text.trim() == query.trim()) {
         setState(() {
           _searchResults = results;
           _isLoading = false;
@@ -69,11 +92,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _searchByGenre(String genre) {
     _searchController.text = genre;
-    _search('$genre songs');
+    _onSearchChanged('$genre songs');
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -146,10 +170,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                             onPressed: () {
                               _searchController.clear();
-                              setState(() {
-                                _searchResults = [];
-                                _hasSearched = false;
-                              });
+                              _onSearchChanged('');
                             },
                           )
                         : null,
@@ -169,8 +190,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
-                  onChanged: (value) => setState(() {}),
-                  onSubmitted: _search,
+                  onChanged: _onSearchChanged,
                   textInputAction: TextInputAction.search,
                 ),
               ),

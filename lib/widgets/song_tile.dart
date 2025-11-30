@@ -139,7 +139,7 @@ class SongTile extends StatelessWidget {
                     color: secondaryText,
                     size: 20,
                   ),
-                  onPressed: () => _showOptions(context, themeProvider),
+                  onPressed: () => _showOptions(context, themeProvider, player),
                 ),
               ],
             ),
@@ -167,10 +167,11 @@ class SongTile extends StatelessWidget {
     );
   }
 
-  void _showOptions(BuildContext context, ThemeProvider themeProvider) {
+  void _showOptions(BuildContext context, ThemeProvider themeProvider, MusicPlayerProvider player) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final playlistProvider = Provider.of<PlaylistProvider>(context, listen: false);
     final isLiked = authProvider.isLoggedIn ? playlistProvider.isSongLikedSync(song.id) : false;
+    final isInQueue = player.isInQueue(song);
 
     showModalBottomSheet(
       context: context,
@@ -238,6 +239,59 @@ class SongTile extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Divider(color: themeProvider.secondaryTextColor.withOpacity(0.2)),
+            
+            // Queue options
+            ListTile(
+              leading: Icon(Icons.queue_play_next, color: themeProvider.textColor),
+              title: Text('Play Next', style: TextStyle(color: themeProvider.textColor)),
+              onTap: () {
+                Navigator.pop(context);
+                player.addToQueueNext(song);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('"${song.title}" will play next'),
+                    backgroundColor: themeProvider.primaryColor,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                isInQueue ? Icons.remove_from_queue : Icons.add_to_queue,
+                color: isInQueue ? Colors.red : themeProvider.textColor,
+              ),
+              title: Text(
+                isInQueue ? 'Remove from Queue' : 'Add to Queue',
+                style: TextStyle(color: themeProvider.textColor),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                if (isInQueue) {
+                  player.removeFromQueueBySong(song);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Removed from queue'),
+                      backgroundColor: themeProvider.primaryColor,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                } else {
+                  player.addToQueue(song);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Added to queue'),
+                      backgroundColor: themeProvider.primaryColor,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                }
+              },
+            ),
+            
             ListTile(
               leading: Icon(
                 isLiked ? Icons.favorite : Icons.favorite_border,

@@ -8,6 +8,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   
   SongModel? _currentSong;
   List<SongModel> _playlist = [];
+  List<SongModel> _queue = [];  // User-managed queue
   int _currentIndex = 0;
   bool _isPlaying = false;
   bool _isLoading = false;
@@ -20,6 +21,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   // Getters
   SongModel? get currentSong => _currentSong;
   List<SongModel> get playlist => _playlist;
+  List<SongModel> get queue => _queue;
   int get currentIndex => _currentIndex;
   bool get isPlaying => _isPlaying;
   bool get isLoading => _isLoading;
@@ -29,6 +31,8 @@ class MusicPlayerProvider extends ChangeNotifier {
   LoopMode get loopMode => _loopMode;
   double get volume => _volume;
   AudioPlayer get audioPlayer => _audioPlayer;
+  bool get hasQueue => _queue.isNotEmpty;
+  int get queueLength => _queue.length;
 
   MusicPlayerProvider() {
     _initializePlayer();
@@ -122,8 +126,81 @@ class MusicPlayerProvider extends ChangeNotifier {
     await _audioPlayer.seek(position);
   }
 
-  // Play next song
+  // ========== QUEUE MANAGEMENT ==========
+
+  // Add song to the end of the queue
+  void addToQueue(SongModel song) {
+    _queue.add(song);
+    notifyListeners();
+  }
+
+  // Add song to play next (front of queue)
+  void addToQueueNext(SongModel song) {
+    _queue.insert(0, song);
+    notifyListeners();
+  }
+
+  // Add multiple songs to queue
+  void addAllToQueue(List<SongModel> songs) {
+    _queue.addAll(songs);
+    notifyListeners();
+  }
+
+  // Remove song from queue by index
+  void removeFromQueue(int index) {
+    if (index >= 0 && index < _queue.length) {
+      _queue.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  // Remove specific song from queue
+  void removeFromQueueBySong(SongModel song) {
+    _queue.removeWhere((s) => s.id == song.id);
+    notifyListeners();
+  }
+
+  // Clear entire queue
+  void clearQueue() {
+    _queue.clear();
+    notifyListeners();
+  }
+
+  // Reorder queue items
+  void reorderQueue(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final song = _queue.removeAt(oldIndex);
+    _queue.insert(newIndex, song);
+    notifyListeners();
+  }
+
+  // Move a song within the queue
+  void moveInQueue(int from, int to) {
+    if (from >= 0 && from < _queue.length && to >= 0 && to < _queue.length) {
+      final song = _queue.removeAt(from);
+      _queue.insert(to, song);
+      notifyListeners();
+    }
+  }
+
+  // Check if song is in queue
+  bool isInQueue(SongModel song) {
+    return _queue.any((s) => s.id == song.id);
+  }
+
+  // Play next song from queue or playlist
   Future<void> playNext() async {
+    // First check if there's anything in the user queue
+    if (_queue.isNotEmpty) {
+      final nextSong = _queue.removeAt(0);
+      notifyListeners();
+      await playSong(nextSong);
+      return;
+    }
+
+    // Otherwise continue with playlist
     if (_playlist.isEmpty) return;
 
     if (_isShuffleOn) {

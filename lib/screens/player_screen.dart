@@ -9,6 +9,7 @@ import '../providers/playlist_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/song_model.dart';
+import 'queue_screen.dart';
 
 class PlayerScreen extends StatelessWidget {
   const PlayerScreen({super.key});
@@ -338,7 +339,7 @@ class PlayerScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Bottom Actions
+              // Bottom Actions - with Queue button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -357,9 +358,39 @@ class PlayerScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  IconButton(
-                    icon: Icon(Icons.queue_music_rounded, size: 20, color: secondaryText),
-                    onPressed: () {},
+                  // Queue button with badge
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.queue_music_rounded, size: 24, color: secondaryText),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const QueueScreen()),
+                          );
+                        },
+                      ),
+                      if (player.hasQueue)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: accentColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${player.queueLength}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -375,6 +406,7 @@ class PlayerScreen extends StatelessWidget {
   void _showSongOptions(BuildContext context, SongModel song, ThemeProvider themeProvider) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final playlistProvider = Provider.of<PlaylistProvider>(context, listen: false);
+    final player = Provider.of<MusicPlayerProvider>(context, listen: false);
     final isLiked = authProvider.isLoggedIn ? playlistProvider.isSongLikedSync(song.id) : false;
 
     showModalBottomSheet(
@@ -418,6 +450,34 @@ class PlayerScreen extends StatelessWidget {
                   return;
                 }
                 playlistProvider.toggleLikeSong(song);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.queue_play_next, color: themeProvider.textColor),
+              title: Text('Play Next', style: TextStyle(color: themeProvider.textColor)),
+              onTap: () {
+                Navigator.pop(context);
+                player.addToQueueNext(song);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('"${song.title}" will play next'),
+                    backgroundColor: themeProvider.primaryColor,
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.add_to_queue, color: themeProvider.textColor),
+              title: Text('Add to Queue', style: TextStyle(color: themeProvider.textColor)),
+              onTap: () {
+                Navigator.pop(context);
+                player.addToQueue(song);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Added to queue'),
+                    backgroundColor: themeProvider.primaryColor,
+                  ),
+                );
               },
             ),
             ListTile(

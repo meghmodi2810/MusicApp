@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // Color scheme options for the app
 enum AppColorScheme {
@@ -11,13 +12,14 @@ enum AppColorScheme {
 }
 
 class AppTheme {
-  // Warm Yellow Theme Colors (Default - matching the image)
-  static const Color warmYellow = Color(0xFFF5DEB3);
-  static const Color warmYellowLight = Color(0xFFFAEBD7);
-  static const Color warmOrange = Color(0xFFD2691E);
-  static const Color warmBrown = Color(0xFF8B4513);
-  static const Color warmRed = Color(0xFFCD5C5C);
-  static const Color warmDarkBrown = Color(0xFF5D3A1A);
+  // Warm Yellow Theme Colors (Default - matching the template images exactly)
+  static const Color warmYellow = Color(0xFFF7E5B7);  // Main background - creamy yellow
+  static const Color warmYellowLight = Color(0xFFFFF8E7);  // Card background - lighter cream
+  static const Color warmOrange = Color(0xFFE85D04);  // Primary accent - vibrant orange
+  static const Color warmBrown = Color(0xFF8B2500);  // Secondary accent - deep brown/red
+  static const Color warmRed = Color(0xFFBF3100);  // Highlight color - burnt orange/red
+  static const Color warmDarkBrown = Color(0xFF4A1C00);  // Text color - dark brown
+  static const Color warmNavBar = Color(0xFF5C1A00);  // Navigation bar - maroon/burgundy
   
   // Soft Pink Theme Colors
   static const Color softPink = Color(0xFFFFE4E1);
@@ -65,7 +67,7 @@ class AppTheme {
   static Color getAccentColor(AppColorScheme scheme) {
     switch (scheme) {
       case AppColorScheme.warmYellow:
-        return warmBrown;
+        return warmOrange;
       case AppColorScheme.softPink:
         return softPinkAccent;
       case AppColorScheme.amoledBlack:
@@ -133,7 +135,7 @@ class AppTheme {
   static Color getNavBarColor(AppColorScheme scheme) {
     switch (scheme) {
       case AppColorScheme.warmYellow:
-        return warmDarkBrown;
+        return warmNavBar;
       case AppColorScheme.softPink:
         return softPinkDark;
       case AppColorScheme.amoledBlack:
@@ -182,6 +184,18 @@ class AppTheme {
     final isDark = isDarkScheme(scheme);
     final navBarColor = getNavBarColor(scheme);
 
+    // Use Google Fonts Poppins
+    final textTheme = GoogleFonts.poppinsTextTheme(
+      TextTheme(
+        displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.5),
+        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.3),
+        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: textColor),
+        bodyLarge: TextStyle(fontSize: 16, color: textColor),
+        bodyMedium: TextStyle(fontSize: 14, color: secondaryText),
+        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+      ),
+    );
+
     return ThemeData(
       useMaterial3: true,
       brightness: isDark ? Brightness.dark : Brightness.light,
@@ -200,36 +214,28 @@ class AppTheme {
               surface: cardColor,
               onSurface: textColor,
             ),
-      fontFamily: 'Roboto',
-      textTheme: TextTheme(
-        displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
-        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: textColor),
-        bodyLarge: TextStyle(fontSize: 16, color: textColor),
-        bodyMedium: TextStyle(fontSize: 14, color: secondaryText),
-        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
-      ),
+      textTheme: textTheme,
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
         iconTheme: IconThemeData(color: textColor),
-        titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+        titleTextStyle: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: navBarColor,
         indicatorColor: accentColor.withOpacity(0.3),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.white);
+            return GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white);
           }
-          return TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.white70);
+          return GoogleFonts.poppins(fontSize: 12, color: Colors.white70);
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: isDark ? Colors.white : Colors.white);
+            return const IconThemeData(color: Colors.white);
           }
-          return IconThemeData(color: isDark ? Colors.white60 : Colors.white70);
+          return const IconThemeData(color: Colors.white70);
         }),
       ),
       cardTheme: CardThemeData(
@@ -243,7 +249,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -253,7 +259,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        hintStyle: TextStyle(color: secondaryText, fontSize: 14),
+        hintStyle: GoogleFonts.poppins(color: secondaryText, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       iconTheme: IconThemeData(color: textColor),
