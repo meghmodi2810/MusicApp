@@ -366,6 +366,22 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildColorSchemeSelector(BuildContext context, ThemeProvider themeProvider) {
+    // Separate themes into light and dark
+    final lightThemes = [
+      AppColorScheme.warmYellow,
+      AppColorScheme.softPink,
+      AppColorScheme.mintGreen,
+      AppColorScheme.lavender,
+      AppColorScheme.peach,
+    ];
+    
+    final darkThemes = [
+      AppColorScheme.amoledBlack,
+      AppColorScheme.darkLavender,
+      AppColorScheme.darkPink,
+      AppColorScheme.darkYellow,
+    ];
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -384,55 +400,98 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          
+          // Light Themes Section
+          Text(
+            'LIGHT THEMES',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: themeProvider.secondaryTextColor,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: AppColorScheme.values.map((scheme) {
-              final isSelected = themeProvider.colorScheme == scheme;
-              final previewColor = themeProvider.getSchemePreviewColor(scheme);
-              final schemeName = themeProvider.getSchemeName(scheme);
-              
-              return GestureDetector(
-                onTap: () => themeProvider.setColorScheme(scheme),
-                child: Column(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: previewColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: isSelected
-                            ? Border.all(color: themeProvider.primaryColor, width: 3)
-                            : Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: previewColor.withOpacity(0.5),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: isSelected
-                          ? Icon(Icons.check, color: AppTheme.getTextColor(scheme), size: 24)
-                          : null,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      schemeName.split(' ').first,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isSelected ? themeProvider.primaryColor : themeProvider.secondaryTextColor,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              );
+            children: lightThemes.map((scheme) {
+              return _buildThemeOption(scheme, themeProvider);
             }).toList(),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Dark Themes Section
+          Text(
+            'DARK THEMES',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: themeProvider.secondaryTextColor,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: darkThemes.map((scheme) {
+              return _buildThemeOption(scheme, themeProvider);
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThemeOption(AppColorScheme scheme, ThemeProvider themeProvider) {
+    final isSelected = themeProvider.colorScheme == scheme;
+    final previewColor = themeProvider.getSchemePreviewColor(scheme);
+    final schemeName = themeProvider.getSchemeName(scheme);
+    
+    return GestureDetector(
+      onTap: () => themeProvider.setColorScheme(scheme),
+      child: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: previewColor,
+              borderRadius: BorderRadius.circular(16),
+              border: isSelected
+                  ? Border.all(color: themeProvider.primaryColor, width: 3)
+                  : Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: previewColor.withOpacity(0.5),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: isSelected
+                ? Icon(Icons.check, color: AppTheme.getTextColor(scheme), size: 24)
+                : null,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 70,
+            child: Text(
+              schemeName,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                color: isSelected ? themeProvider.primaryColor : themeProvider.secondaryTextColor,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

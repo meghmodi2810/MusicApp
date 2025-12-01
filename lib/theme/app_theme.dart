@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 
 // Color scheme options for the app
 enum AppColorScheme {
-  warmYellow,   // Default - like the image
+  // Light themes
+  warmYellow,
   softPink,
-  amoledBlack,
   mintGreen,
   lavender,
   peach,
+  // Dark themes
+  amoledBlack,
+  darkLavender,
+  darkPink,
+  darkYellow,
 }
 
 class AppTheme {
@@ -45,6 +50,24 @@ class AppTheme {
   static const Color peachAccent = Color(0xFFFF8C69);
   static const Color peachDark = Color(0xFFE85D4C);
 
+  // Dark Lavender Theme Colors (AMOLED)
+  static const Color darkLavenderBg = Color(0xFF0A0012);  // Deep dark purple/black
+  static const Color darkLavenderCard = Color(0xFF1A0F2E);  // Dark purple card
+  static const Color darkLavenderAccent = Color(0xFFB794F6);  // Bright lavender accent
+  static const Color darkLavenderText = Color(0xFFE9D5FF);  // Light lavender text
+  
+  // Dark Pink Theme Colors (AMOLED)
+  static const Color darkPinkBg = Color(0xFF0F0008);  // Deep dark pink/black
+  static const Color darkPinkCard = Color(0xFF2A0F1C);  // Dark pink card
+  static const Color darkPinkAccent = Color(0xFFFF6B9D);  // Bright pink accent
+  static const Color darkPinkText = Color(0xFFFFD6E8);  // Light pink text
+  
+  // Dark Yellow Theme Colors (AMOLED)
+  static const Color darkYellowBg = Color(0xFF0F0A00);  // Deep dark amber/black
+  static const Color darkYellowCard = Color(0xFF2A1F0F);  // Dark amber card
+  static const Color darkYellowAccent = Color(0xFFFFB84D);  // Bright yellow/gold accent
+  static const Color darkYellowText = Color(0xFFFFF4D6);  // Light cream text
+
   // Get colors based on color scheme
   static Color getBackgroundColor(AppColorScheme scheme) {
     switch (scheme) {
@@ -60,6 +83,12 @@ class AppTheme {
         return lavender;
       case AppColorScheme.peach:
         return peach;
+      case AppColorScheme.darkLavender:
+        return darkLavenderBg;
+      case AppColorScheme.darkPink:
+        return darkPinkBg;
+      case AppColorScheme.darkYellow:
+        return darkYellowBg;
     }
   }
 
@@ -77,6 +106,12 @@ class AppTheme {
         return lavenderAccent;
       case AppColorScheme.peach:
         return peachAccent;
+      case AppColorScheme.darkLavender:
+        return darkLavenderAccent;
+      case AppColorScheme.darkPink:
+        return darkPinkAccent;
+      case AppColorScheme.darkYellow:
+        return darkYellowAccent;
     }
   }
 
@@ -94,6 +129,12 @@ class AppTheme {
         return Colors.white;
       case AppColorScheme.peach:
         return Colors.white;
+      case AppColorScheme.darkLavender:
+        return darkLavenderCard;
+      case AppColorScheme.darkPink:
+        return darkPinkCard;
+      case AppColorScheme.darkYellow:
+        return darkYellowCard;
     }
   }
 
@@ -111,6 +152,12 @@ class AppTheme {
         return lavenderDark;
       case AppColorScheme.peach:
         return peachDark;
+      case AppColorScheme.darkLavender:
+        return darkLavenderText;
+      case AppColorScheme.darkPink:
+        return darkPinkText;
+      case AppColorScheme.darkYellow:
+        return darkYellowText;
     }
   }
 
@@ -128,6 +175,12 @@ class AppTheme {
         return lavenderDark.withOpacity(0.7);
       case AppColorScheme.peach:
         return peachDark.withOpacity(0.7);
+      case AppColorScheme.darkLavender:
+        return darkLavenderText.withOpacity(0.7);
+      case AppColorScheme.darkPink:
+        return darkPinkText.withOpacity(0.7);
+      case AppColorScheme.darkYellow:
+        return darkYellowText.withOpacity(0.7);
     }
   }
 
@@ -145,11 +198,20 @@ class AppTheme {
         return lavenderDark;
       case AppColorScheme.peach:
         return peachDark;
+      case AppColorScheme.darkLavender:
+        return darkLavenderCard;
+      case AppColorScheme.darkPink:
+        return darkPinkCard;
+      case AppColorScheme.darkYellow:
+        return darkYellowCard;
     }
   }
 
   static bool isDarkScheme(AppColorScheme scheme) {
-    return scheme == AppColorScheme.amoledBlack;
+    return scheme == AppColorScheme.amoledBlack ||
+           scheme == AppColorScheme.darkLavender ||
+           scheme == AppColorScheme.darkPink ||
+           scheme == AppColorScheme.darkYellow;
   }
 
   static String getSchemeName(AppColorScheme scheme) {
@@ -166,6 +228,12 @@ class AppTheme {
         return 'Lavender';
       case AppColorScheme.peach:
         return 'Peach';
+      case AppColorScheme.darkLavender:
+        return 'Dark Lavender';
+      case AppColorScheme.darkPink:
+        return 'Dark Pink';
+      case AppColorScheme.darkYellow:
+        return 'Dark Yellow';
     }
   }
 

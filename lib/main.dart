@@ -74,7 +74,7 @@ class MyApp extends StatelessWidget {
           );
           
           return MaterialApp(
-            title: 'Melodify',
+            title: 'Pancake Tunes',
             debugShowCheckedModeBanner: false,
             theme: themeProvider.theme,
             // Disable default animations for better performance
