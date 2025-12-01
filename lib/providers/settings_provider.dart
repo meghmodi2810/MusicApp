@@ -17,6 +17,7 @@ class SettingsProvider extends ChangeNotifier {
   // UI settings
   bool _showGetStarted = true;
   bool _animationsEnabled = true;
+  String _progressBarStyle = 'wavy2'; // straight, wavy1, wavy2, modern
   
   // Cache
   int _cacheSize = 0; // in MB
@@ -32,6 +33,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get downloadOverWifiOnly => _downloadOverWifiOnly;
   bool get showGetStarted => _showGetStarted;
   bool get animationsEnabled => _animationsEnabled;
+  String get progressBarStyle => _progressBarStyle;
   int get cacheSize => _cacheSize;
   
   // Bitrate based on quality
@@ -76,6 +78,7 @@ class SettingsProvider extends ChangeNotifier {
     _downloadOverWifiOnly = prefs.getBool('downloadOverWifiOnly') ?? true;
     _showGetStarted = prefs.getBool('showGetStarted') ?? true;
     _animationsEnabled = prefs.getBool('animationsEnabled') ?? true;
+    _progressBarStyle = prefs.getString('progressBarStyle') ?? 'wavy2';
     _cacheSize = prefs.getInt('cacheSize') ?? 0;
     
     notifyListeners();
@@ -148,6 +151,13 @@ class SettingsProvider extends ChangeNotifier {
     _animationsEnabled = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('animationsEnabled', value);
+    notifyListeners();
+  }
+
+  Future<void> setProgressBarStyle(String style) async {
+    _progressBarStyle = style;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('progressBarStyle', style);
     notifyListeners();
   }
 

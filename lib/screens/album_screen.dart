@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/album_model.dart';
 import '../models/song_model.dart';
 import '../services/music_api_service.dart';
+import '../services/download_service.dart';
 import '../providers/theme_provider.dart';
 import '../providers/music_player_provider.dart';
 import '../widgets/song_tile.dart';
@@ -88,67 +89,11 @@ class _AlbumScreenState extends State<AlbumScreen> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          themeProvider.backgroundColor.withOpacity(0.5),
+                          Colors.transparent,
                           themeProvider.backgroundColor,
                         ],
-                        stops: const [0.0, 0.7, 1.0],
+                        stops: const [0.0, 0.5, 1.0],
                       ),
-                    ),
-                  ),
-                  // Album info
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'ALBUM',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.album.name,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.album.artist,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 16,
-                          ),
-                        ),
-                        if (widget.album.year != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            '${widget.album.year} • ${widget.album.songCount ?? _songs.length} songs',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ],
                     ),
                   ),
                 ],
@@ -156,29 +101,137 @@ class _AlbumScreenState extends State<AlbumScreen> {
             ),
           ),
 
-          // Play All Button
+          // Album Info and Action Buttons
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton.icon(
-                onPressed: _songs.isNotEmpty
-                    ? () {
-                        context.read<MusicPlayerProvider>().playSong(
-                              _songs.first,
-                              playlist: _songs,
-                            );
-                      }
-                    : null,
-                icon: Icon(Icons.play_arrow_rounded, size: 28),
-                label: Text('Play Album', style: TextStyle(fontSize: 16)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.album.name,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.album.artist,
+                    style: TextStyle(
+                      color: themeProvider.secondaryTextColor,
+                      fontSize: 16,
+                    ),
+                  ),
+                  if (widget.album.year != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${widget.album.year} • ${widget.album.songCount ?? _songs.length} songs',
+                      style: TextStyle(
+                        color: themeProvider.secondaryTextColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  // Action Buttons Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _songs.isNotEmpty
+                              ? () {
+                                  context.read<MusicPlayerProvider>().playSong(
+                                        _songs.first,
+                                        playlist: _songs,
+                                      );
+                                }
+                              : null,
+                          icon: Icon(Icons.play_arrow_rounded, size: 28),
+                          label: Text('Play', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentColor,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _songs.isNotEmpty
+                              ? () {
+                                  final shuffledSongs = List<SongModel>.from(_songs)..shuffle();
+                                  context.read<MusicPlayerProvider>().playSong(
+                                        shuffledSongs.first,
+                                        playlist: shuffledSongs,
+                                      );
+                                }
+                              : null,
+                          icon: Icon(Icons.shuffle, size: 24),
+                          label: Text('Shuffle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: accentColor,
+                            side: BorderSide(color: accentColor, width: 2),
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Download Album Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _songs.isNotEmpty
+                          ? () async {
+                              final downloadService = context.read<DownloadService>();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Downloading ${_songs.length} songs...'),
+                                  backgroundColor: accentColor,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              );
+                              for (final song in _songs) {
+                                await downloadService.downloadSong(song);
+                              }
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Album downloaded successfully'),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                              }
+                            }
+                          : null,
+                      icon: Icon(Icons.download_outlined, size: 24),
+                      label: Text('Download Album', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: textColor,
+                        side: BorderSide(color: themeProvider.secondaryTextColor.withOpacity(0.3), width: 2),
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

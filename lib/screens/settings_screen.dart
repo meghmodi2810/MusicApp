@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/settings_provider.dart';
 import 'login_screen.dart';
 import 'appearance_settings_screen.dart';
 import 'playback_settings_screen.dart';
 import 'about_settings_screen.dart';
+import 'storage_settings_screen.dart';
+import 'streaming_quality_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -66,7 +67,7 @@ class SettingsScreen extends StatelessWidget {
             context,
             icon: Icons.play_circle_outline,
             title: 'Playback',
-            subtitle: 'Audio quality and playback features',
+            subtitle: 'Playback controls and features',
             themeProvider: themeProvider,
             onTap: () {
               Navigator.push(
@@ -78,9 +79,37 @@ class SettingsScreen extends StatelessWidget {
           
           _buildSettingsCategoryTile(
             context,
+            icon: Icons.high_quality_outlined,
+            title: 'Streaming & Quality',
+            subtitle: 'Audio quality and data usage',
+            themeProvider: themeProvider,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StreamingQualitySettingsScreen()),
+              );
+            },
+          ),
+          
+          _buildSettingsCategoryTile(
+            context,
+            icon: Icons.storage_outlined,
+            title: 'Storage',
+            subtitle: 'Cache and downloads management',
+            themeProvider: themeProvider,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StorageSettingsScreen()),
+              );
+            },
+          ),
+          
+          _buildSettingsCategoryTile(
+            context,
             icon: Icons.info_outline,
             title: 'About',
-            subtitle: 'App info, storage, and support',
+            subtitle: 'App info and support',
             themeProvider: themeProvider,
             onTap: () {
               Navigator.push(

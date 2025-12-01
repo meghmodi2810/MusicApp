@@ -7,12 +7,12 @@ enum AppColorScheme {
   softPink,
   mintGreen,
   lavender,
-  peach,
   // Dark themes
   amoledBlack,
   darkLavender,
   darkPink,
   darkYellow,
+  darkMintGreen,
 }
 
 class AppTheme {
@@ -44,11 +44,6 @@ class AppTheme {
   static const Color lavender = Color(0xFFF0E6FA);
   static const Color lavenderAccent = Color(0xFF9B59B6);
   static const Color lavenderDark = Color(0xFF6C3483);
-  
-  // Peach Theme Colors
-  static const Color peach = Color(0xFFFFE5D9);
-  static const Color peachAccent = Color(0xFFFF8C69);
-  static const Color peachDark = Color(0xFFE85D4C);
 
   // Dark Lavender Theme Colors (AMOLED)
   static const Color darkLavenderBg = Color(0xFF0A0012);  // Deep dark purple/black
@@ -68,6 +63,12 @@ class AppTheme {
   static const Color darkYellowAccent = Color(0xFFFFB84D);  // Bright yellow/gold accent
   static const Color darkYellowText = Color(0xFFFFF4D6);  // Light cream text
 
+  // Dark Mint Green Theme Colors (AMOLED)
+  static const Color darkMintGreenBg = Color(0xFF0A1410);  // Deep dark mint/black
+  static const Color darkMintGreenCard = Color(0xFF1A2E26);  // Dark mint card
+  static const Color darkMintGreenAccent = Color(0xFF6FFFC9);  // Bright mint green accent
+  static const Color darkMintGreenText = Color(0xFFD6FFF0);  // Light mint text
+
   // Get colors based on color scheme
   static Color getBackgroundColor(AppColorScheme scheme) {
     switch (scheme) {
@@ -81,14 +82,14 @@ class AppTheme {
         return mintGreen;
       case AppColorScheme.lavender:
         return lavender;
-      case AppColorScheme.peach:
-        return peach;
       case AppColorScheme.darkLavender:
         return darkLavenderBg;
       case AppColorScheme.darkPink:
         return darkPinkBg;
       case AppColorScheme.darkYellow:
         return darkYellowBg;
+      case AppColorScheme.darkMintGreen:
+        return darkMintGreenBg;
     }
   }
 
@@ -104,14 +105,14 @@ class AppTheme {
         return mintGreenAccent;
       case AppColorScheme.lavender:
         return lavenderAccent;
-      case AppColorScheme.peach:
-        return peachAccent;
       case AppColorScheme.darkLavender:
         return darkLavenderAccent;
       case AppColorScheme.darkPink:
         return darkPinkAccent;
       case AppColorScheme.darkYellow:
         return darkYellowAccent;
+      case AppColorScheme.darkMintGreen:
+        return darkMintGreenAccent;
     }
   }
 
@@ -127,14 +128,14 @@ class AppTheme {
         return Colors.white;
       case AppColorScheme.lavender:
         return Colors.white;
-      case AppColorScheme.peach:
-        return Colors.white;
       case AppColorScheme.darkLavender:
         return darkLavenderCard;
       case AppColorScheme.darkPink:
         return darkPinkCard;
       case AppColorScheme.darkYellow:
         return darkYellowCard;
+      case AppColorScheme.darkMintGreen:
+        return darkMintGreenCard;
     }
   }
 
@@ -150,14 +151,14 @@ class AppTheme {
         return mintGreenDark;
       case AppColorScheme.lavender:
         return lavenderDark;
-      case AppColorScheme.peach:
-        return peachDark;
       case AppColorScheme.darkLavender:
         return darkLavenderText;
       case AppColorScheme.darkPink:
         return darkPinkText;
       case AppColorScheme.darkYellow:
         return darkYellowText;
+      case AppColorScheme.darkMintGreen:
+        return darkMintGreenText;
     }
   }
 
@@ -173,14 +174,14 @@ class AppTheme {
         return mintGreenDark.withOpacity(0.7);
       case AppColorScheme.lavender:
         return lavenderDark.withOpacity(0.7);
-      case AppColorScheme.peach:
-        return peachDark.withOpacity(0.7);
       case AppColorScheme.darkLavender:
         return darkLavenderText.withOpacity(0.7);
       case AppColorScheme.darkPink:
         return darkPinkText.withOpacity(0.7);
       case AppColorScheme.darkYellow:
         return darkYellowText.withOpacity(0.7);
+      case AppColorScheme.darkMintGreen:
+        return darkMintGreenText.withOpacity(0.7);
     }
   }
 
@@ -196,14 +197,14 @@ class AppTheme {
         return mintGreenDark;
       case AppColorScheme.lavender:
         return lavenderDark;
-      case AppColorScheme.peach:
-        return peachDark;
       case AppColorScheme.darkLavender:
         return darkLavenderCard;
       case AppColorScheme.darkPink:
         return darkPinkCard;
       case AppColorScheme.darkYellow:
         return darkYellowCard;
+      case AppColorScheme.darkMintGreen:
+        return darkMintGreenCard;
     }
   }
 
@@ -211,7 +212,8 @@ class AppTheme {
     return scheme == AppColorScheme.amoledBlack ||
            scheme == AppColorScheme.darkLavender ||
            scheme == AppColorScheme.darkPink ||
-           scheme == AppColorScheme.darkYellow;
+           scheme == AppColorScheme.darkYellow ||
+           scheme == AppColorScheme.darkMintGreen;
   }
 
   static String getSchemeName(AppColorScheme scheme) {
@@ -226,14 +228,14 @@ class AppTheme {
         return 'Mint Green';
       case AppColorScheme.lavender:
         return 'Lavender';
-      case AppColorScheme.peach:
-        return 'Peach';
       case AppColorScheme.darkLavender:
         return 'Dark Lavender';
       case AppColorScheme.darkPink:
         return 'Dark Pink';
       case AppColorScheme.darkYellow:
         return 'Dark Yellow';
+      case AppColorScheme.darkMintGreen:
+        return 'Dark Mint Green';
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 
 class AppearanceSettingsScreen extends StatelessWidget {
@@ -9,6 +10,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final settingsProvider = Provider.of<SettingsProvider>(context);
     final textColor = themeProvider.textColor;
     final secondaryText = themeProvider.secondaryTextColor;
 
@@ -37,6 +39,14 @@ class AppearanceSettingsScreen extends StatelessWidget {
           
           // Interface Settings
           _buildSectionHeader('Interface', secondaryText),
+          _buildSettingsTile(
+            context,
+            icon: Icons.show_chart,
+            title: 'Progress Bar Style',
+            subtitle: _getProgressBarStyleName(settingsProvider.progressBarStyle),
+            themeProvider: themeProvider,
+            onTap: () => _showProgressBarStyleDialog(context, themeProvider, settingsProvider),
+          ),
           _buildSettingsTile(
             context,
             icon: Icons.text_fields,
@@ -84,7 +94,6 @@ class AppearanceSettingsScreen extends StatelessWidget {
       AppColorScheme.softPink,
       AppColorScheme.mintGreen,
       AppColorScheme.lavender,
-      AppColorScheme.peach,
     ];
     
     final darkThemes = [
@@ -92,6 +101,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
       AppColorScheme.darkLavender,
       AppColorScheme.darkPink,
       AppColorScheme.darkYellow,
+      AppColorScheme.darkMintGreen,
     ];
 
     return Container(
@@ -310,5 +320,73 @@ class AppearanceSettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showProgressBarStyleDialog(BuildContext context, ThemeProvider themeProvider, SettingsProvider settingsProvider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: themeProvider.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: themeProvider.secondaryTextColor.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Progress Bar Style',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: themeProvider.textColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...[
+            ('Straight', 'straight'),
+            ('Wavy (Less)', 'wavy1'),
+            ('Wavy (More)', 'wavy2'),
+            ('Modern', 'modern'),
+          ].map((style) => ListTile(
+            title: Text(
+              style.$1,
+              style: TextStyle(color: themeProvider.textColor),
+            ),
+            trailing: settingsProvider.progressBarStyle == style.$2
+                ? Icon(Icons.check, color: themeProvider.primaryColor)
+                : null,
+            onTap: () {
+              settingsProvider.setProgressBarStyle(style.$2);
+              Navigator.pop(context);
+            },
+          )),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  String _getProgressBarStyleName(String style) {
+    switch (style) {
+      case 'straight':
+        return 'Straight';
+      case 'wavy1':
+        return 'Wavy (Less)';
+      case 'wavy2':
+        return 'Wavy (More)';
+      case 'modern':
+        return 'Modern';
+      default:
+        return 'Wavy (More)';
+    }
   }
 }

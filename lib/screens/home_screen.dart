@@ -165,10 +165,18 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             Text(
                               userName,
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: themeProvider.secondaryTextColor,
-                                letterSpacing: 0.5,
+                                fontSize: 42,
+                                fontWeight: FontWeight.w900,
+                                color: textColor,
+                                letterSpacing: -1.5,
+                                height: 1.0,
+                                shadows: [
+                                  Shadow(
+                                    color: accentColor.withOpacity(0.3),
+                                    offset: const Offset(0, 2),
+                                    blurRadius: 4,
+                                  ),
+                                ],
                               ),
                             ),
                           ],

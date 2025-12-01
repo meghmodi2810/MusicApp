@@ -7,6 +7,7 @@ import '../providers/music_player_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/song_model.dart';
 import 'queue_screen.dart';
 
@@ -197,64 +198,97 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // PERFORMANCE OPTIMIZED: Progress bar with ValueListenableBuilder
   Widget _buildOptimizedProgressBar(MusicPlayerProvider player, ThemeProvider themeProvider) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          ValueListenableBuilder<Duration>(
-            valueListenable: player.positionNotifier,
-            builder: (context, position, child) {
-              return ValueListenableBuilder<Duration>(
-                valueListenable: player.durationNotifier,
-                builder: (context, duration, _) {
-                  return OptimizedWavySlider(
-                    value: position.inSeconds.toDouble(),
-                    max: duration.inSeconds > 0 ? duration.inSeconds.toDouble() : 1.0,
-                    onChanged: (value) => player.seek(Duration(seconds: value.toInt())),
-                    activeColor: themeProvider.primaryColor,
-                    inactiveColor: themeProvider.secondaryTextColor.withOpacity(0.3),
+    return Consumer<SettingsProvider>(
+      builder: (context, settingsProvider, _) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              ValueListenableBuilder<Duration>(
+                valueListenable: player.positionNotifier,
+                builder: (context, position, child) {
+                  return ValueListenableBuilder<Duration>(
+                    valueListenable: player.durationNotifier,
+                    builder: (context, duration, _) {
+                      final style = settingsProvider.progressBarStyle;
+                      
+                      if (style == 'straight') {
+                        return StraightSlider(
+                          value: position.inSeconds.toDouble(),
+                          max: duration.inSeconds > 0 ? duration.inSeconds.toDouble() : 1.0,
+                          onChanged: (value) => player.seek(Duration(seconds: value.toInt())),
+                          activeColor: themeProvider.primaryColor,
+                          inactiveColor: themeProvider.secondaryTextColor.withOpacity(0.3),
+                        );
+                      } else if (style == 'wavy1') {
+                        return WavySlider1(
+                          value: position.inSeconds.toDouble(),
+                          max: duration.inSeconds > 0 ? duration.inSeconds.toDouble() : 1.0,
+                          onChanged: (value) => player.seek(Duration(seconds: value.toInt())),
+                          activeColor: themeProvider.primaryColor,
+                          inactiveColor: themeProvider.secondaryTextColor.withOpacity(0.3),
+                        );
+                      } else if (style == 'modern') {
+                        return ModernSlider(
+                          value: position.inSeconds.toDouble(),
+                          max: duration.inSeconds > 0 ? duration.inSeconds.toDouble() : 1.0,
+                          onChanged: (value) => player.seek(Duration(seconds: value.toInt())),
+                          activeColor: themeProvider.primaryColor,
+                          inactiveColor: themeProvider.secondaryTextColor.withOpacity(0.3),
+                        );
+                      } else {
+                        // wavy2 (default)
+                        return OptimizedWavySlider(
+                          value: position.inSeconds.toDouble(),
+                          max: duration.inSeconds > 0 ? duration.inSeconds.toDouble() : 1.0,
+                          onChanged: (value) => player.seek(Duration(seconds: value.toInt())),
+                          activeColor: themeProvider.primaryColor,
+                          inactiveColor: themeProvider.secondaryTextColor.withOpacity(0.3),
+                        );
+                      }
+                    },
                   );
                 },
-              );
-            },
-          ),
-          const SizedBox(height: 8),
-          ValueListenableBuilder<Duration>(
-            valueListenable: player.positionNotifier,
-            builder: (context, position, child) {
-              return ValueListenableBuilder<Duration>(
-                valueListenable: player.durationNotifier,
-                builder: (context, duration, _) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _formatDuration(position),
-                          style: TextStyle(
-                            color: themeProvider.secondaryTextColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+              ),
+              const SizedBox(height: 8),
+              ValueListenableBuilder<Duration>(
+                valueListenable: player.positionNotifier,
+                builder: (context, position, child) {
+                  return ValueListenableBuilder<Duration>(
+                    valueListenable: player.durationNotifier,
+                    builder: (context, duration, _) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _formatDuration(position),
+                              style: TextStyle(
+                                color: themeProvider.secondaryTextColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              _formatDuration(duration),
+                              style: TextStyle(
+                                color: themeProvider.secondaryTextColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          _formatDuration(duration),
-                          style: TextStyle(
-                            color: themeProvider.secondaryTextColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -543,7 +577,163 @@ class OptimizedWavySlider extends StatefulWidget {
   State<OptimizedWavySlider> createState() => _OptimizedWavySliderState();
 }
 
-class _OptimizedWavySliderState extends State<OptimizedWavySlider> {
+class _OptimizedWavySliderState extends State<OptimizedWavySlider> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragUpdate: (details) {
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        final localPosition = details.localPosition.dx;
+        final width = box.size.width;
+        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+        widget.onChanged(newValue);
+      },
+      onTapDown: (details) {
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        final localPosition = details.localPosition.dx;
+        final width = box.size.width;
+        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+        widget.onChanged(newValue);
+      },
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            return CustomPaint(
+              size: const Size(double.infinity, 50),
+              painter: WavySliderPainter(
+                value: widget.value,
+                max: widget.max,
+                activeColor: widget.activeColor,
+                inactiveColor: widget.inactiveColor,
+                animationValue: _animationController.value,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class WavySliderPainter extends CustomPainter {
+  final double value;
+  final double max;
+  final Color activeColor;
+  final Color inactiveColor;
+  final double animationValue;
+
+  WavySliderPainter({
+    required this.value,
+    required this.max,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.animationValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final progress = max > 0 ? value / max : 0.0;
+    final activeWidth = size.width * progress;
+
+    // Draw inactive wave
+    final inactivePaint = Paint()
+      ..color = inactiveColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    final inactivePath = Path();
+    const waveHeight = 8.0;
+    const waveLength = 20.0;
+    final phase = animationValue * 2 * math.pi;
+    
+    for (double i = 0; i <= size.width; i += 1) {
+      final y = size.height / 2 + math.sin((i / waveLength) * 2 * math.pi + phase) * waveHeight;
+      if (i == 0) {
+        inactivePath.moveTo(i, y);
+      } else {
+        inactivePath.lineTo(i, y);
+      }
+    }
+    canvas.drawPath(inactivePath, inactivePaint);
+
+    // Draw active wave
+    if (activeWidth > 0) {
+      final activePaint = Paint()
+        ..color = activeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round;
+
+      final activePath = Path();
+      for (double i = 0; i <= activeWidth; i += 1) {
+        final y = size.height / 2 + math.sin((i / waveLength) * 2 * math.pi + phase) * waveHeight;
+        if (i == 0) {
+          activePath.moveTo(i, y);
+        } else {
+          activePath.lineTo(i, y);
+        }
+      }
+      canvas.drawPath(activePath, activePaint);
+
+      // Draw thumb
+      final thumbY = size.height / 2 + math.sin((activeWidth / waveLength) * 2 * math.pi + phase) * waveHeight;
+      canvas.drawCircle(
+        Offset(activeWidth, thumbY),
+        8,
+        Paint()..color = activeColor,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(WavySliderPainter oldDelegate) {
+    return oldDelegate.value != value || 
+           oldDelegate.max != max || 
+           oldDelegate.animationValue != animationValue;
+  }
+}
+
+// STRAIGHT SLIDER
+class StraightSlider extends StatefulWidget {
+  final double value;
+  final double max;
+  final ValueChanged<double> onChanged;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  const StraightSlider({
+    super.key,
+    required this.value,
+    required this.max,
+    required this.onChanged,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  @override
+  State<StraightSlider> createState() => _StraightSliderState();
+}
+
+class _StraightSliderState extends State<StraightSlider> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -564,7 +754,7 @@ class _OptimizedWavySliderState extends State<OptimizedWavySlider> {
       child: RepaintBoundary(
         child: CustomPaint(
           size: const Size(double.infinity, 50),
-          painter: WavySliderPainter(
+          painter: StraightSliderPainter(
             value: widget.value,
             max: widget.max,
             activeColor: widget.activeColor,
@@ -576,13 +766,13 @@ class _OptimizedWavySliderState extends State<OptimizedWavySlider> {
   }
 }
 
-class WavySliderPainter extends CustomPainter {
+class StraightSliderPainter extends CustomPainter {
   final double value;
   final double max;
   final Color activeColor;
   final Color inactiveColor;
 
-  WavySliderPainter({
+  StraightSliderPainter({
     required this.value,
     required this.max,
     required this.activeColor,
@@ -593,8 +783,136 @@ class WavySliderPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final progress = max > 0 ? value / max : 0.0;
     final activeWidth = size.width * progress;
+    final y = size.height / 2;
 
-    // Draw inactive wave
+    // Draw inactive line
+    final inactivePaint = Paint()
+      ..color = inactiveColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(Offset(0, y), Offset(size.width, y), inactivePaint);
+
+    // Draw active line
+    if (activeWidth > 0) {
+      final activePaint = Paint()
+        ..color = activeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawLine(Offset(0, y), Offset(activeWidth, y), activePaint);
+
+      // Draw thumb
+      canvas.drawCircle(Offset(activeWidth, y), 8, Paint()..color = activeColor);
+    }
+  }
+
+  @override
+  bool shouldRepaint(StraightSliderPainter oldDelegate) {
+    return oldDelegate.value != value || oldDelegate.max != max;
+  }
+}
+
+// WAVY SLIDER 1 (Less Wavy)
+class WavySlider1 extends StatefulWidget {
+  final double value;
+  final double max;
+  final ValueChanged<double> onChanged;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  const WavySlider1({
+    super.key,
+    required this.value,
+    required this.max,
+    required this.onChanged,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  @override
+  State<WavySlider1> createState() => _WavySlider1State();
+}
+
+class _WavySlider1State extends State<WavySlider1> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragUpdate: (details) {
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        final localPosition = details.localPosition.dx;
+        final width = box.size.width;
+        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+        widget.onChanged(newValue);
+      },
+      onTapDown: (details) {
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        final localPosition = details.localPosition.dx;
+        final width = box.size.width;
+        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+        widget.onChanged(newValue);
+      },
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            return CustomPaint(
+              size: const Size(double.infinity, 50),
+              painter: WavySlider1Painter(
+                value: widget.value,
+                max: widget.max,
+                activeColor: widget.activeColor,
+                inactiveColor: widget.inactiveColor,
+                animationValue: _animationController.value,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class WavySlider1Painter extends CustomPainter {
+  final double value;
+  final double max;
+  final Color activeColor;
+  final Color inactiveColor;
+  final double animationValue;
+
+  WavySlider1Painter({
+    required this.value,
+    required this.max,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.animationValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final progress = max > 0 ? value / max : 0.0;
+    final activeWidth = size.width * progress;
+
+    // Draw inactive wave (less wavy)
     final inactivePaint = Paint()
       ..color = inactiveColor
       ..style = PaintingStyle.stroke
@@ -602,11 +920,12 @@ class WavySliderPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final inactivePath = Path();
-    const waveHeight = 8.0;
-    const waveLength = 20.0;
+    const waveHeight = 4.0;
+    const waveLength = 30.0;
+    final phase = animationValue * 2 * math.pi;
     
     for (double i = 0; i <= size.width; i += 1) {
-      final y = size.height / 2 + math.sin((i / waveLength) * 2 * math.pi) * waveHeight;
+      final y = size.height / 2 + math.sin((i / waveLength) * 2 * math.pi + phase) * waveHeight;
       if (i == 0) {
         inactivePath.moveTo(i, y);
       } else {
@@ -625,7 +944,7 @@ class WavySliderPainter extends CustomPainter {
 
       final activePath = Path();
       for (double i = 0; i <= activeWidth; i += 1) {
-        final y = size.height / 2 + math.sin((i / waveLength) * 2 * math.pi) * waveHeight;
+        final y = size.height / 2 + math.sin((i / waveLength) * 2 * math.pi + phase) * waveHeight;
         if (i == 0) {
           activePath.moveTo(i, y);
         } else {
@@ -635,17 +954,159 @@ class WavySliderPainter extends CustomPainter {
       canvas.drawPath(activePath, activePaint);
 
       // Draw thumb
-      final thumbY = size.height / 2 + math.sin((activeWidth / waveLength) * 2 * math.pi) * waveHeight;
-      canvas.drawCircle(
-        Offset(activeWidth, thumbY),
-        8,
-        Paint()..color = activeColor,
-      );
+      final thumbY = size.height / 2 + math.sin((activeWidth / waveLength) * 2 * math.pi + phase) * waveHeight;
+      canvas.drawCircle(Offset(activeWidth, thumbY), 8, Paint()..color = activeColor);
     }
   }
 
   @override
-  bool shouldRepaint(WavySliderPainter oldDelegate) {
-    return oldDelegate.value != value || oldDelegate.max != max;
+  bool shouldRepaint(WavySlider1Painter oldDelegate) {
+    return oldDelegate.value != value || 
+           oldDelegate.max != max || 
+           oldDelegate.animationValue != animationValue;
+  }
+}
+
+// MODERN SLIDER (Wavy active, straight inactive)
+class ModernSlider extends StatefulWidget {
+  final double value;
+  final double max;
+  final ValueChanged<double> onChanged;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  const ModernSlider({
+    super.key,
+    required this.value,
+    required this.max,
+    required this.onChanged,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  @override
+  State<ModernSlider> createState() => _ModernSliderState();
+}
+
+class _ModernSliderState extends State<ModernSlider> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragUpdate: (details) {
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        final localPosition = details.localPosition.dx;
+        final width = box.size.width;
+        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+        widget.onChanged(newValue);
+      },
+      onTapDown: (details) {
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        final localPosition = details.localPosition.dx;
+        final width = box.size.width;
+        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+        widget.onChanged(newValue);
+      },
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            return CustomPaint(
+              size: const Size(double.infinity, 50),
+              painter: ModernSliderPainter(
+                value: widget.value,
+                max: widget.max,
+                activeColor: widget.activeColor,
+                inactiveColor: widget.inactiveColor,
+                animationValue: _animationController.value,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class ModernSliderPainter extends CustomPainter {
+  final double value;
+  final double max;
+  final Color activeColor;
+  final Color inactiveColor;
+  final double animationValue;
+
+  ModernSliderPainter({
+    required this.value,
+    required this.max,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.animationValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final progress = max > 0 ? value / max : 0.0;
+    final activeWidth = size.width * progress;
+    final y = size.height / 2;
+
+    // Draw inactive line (straight)
+    final inactivePaint = Paint()
+      ..color = inactiveColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(Offset(activeWidth, y), Offset(size.width, y), inactivePaint);
+
+    // Draw active wave
+    if (activeWidth > 0) {
+      final activePaint = Paint()
+        ..color = activeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round;
+
+      final activePath = Path();
+      const waveHeight = 6.0;
+      const waveLength = 25.0;
+      final phase = animationValue * 2 * math.pi;
+      
+      for (double i = 0; i <= activeWidth; i += 1) {
+        final waveY = size.height / 2 + math.sin((i / waveLength) * 2 * math.pi + phase) * waveHeight;
+        if (i == 0) {
+          activePath.moveTo(i, waveY);
+        } else {
+          activePath.lineTo(i, waveY);
+        }
+      }
+      canvas.drawPath(activePath, activePaint);
+
+      // Draw thumb
+      final thumbY = size.height / 2 + math.sin((activeWidth / waveLength) * 2 * math.pi + phase) * waveHeight;
+      canvas.drawCircle(Offset(activeWidth, thumbY), 8, Paint()..color = activeColor);
+    }
+  }
+
+  @override
+  bool shouldRepaint(ModernSliderPainter oldDelegate) {
+    return oldDelegate.value != value || 
+           oldDelegate.max != max || 
+           oldDelegate.animationValue != animationValue;
   }
 }

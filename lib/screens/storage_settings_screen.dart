@@ -3,10 +3,9 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/download_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-class AboutSettingsScreen extends StatelessWidget {
-  const AboutSettingsScreen({super.key});
+class StorageSettingsScreen extends StatelessWidget {
+  const StorageSettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +18,7 @@ class AboutSettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'About',
+          'Storage',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: textColor,
@@ -33,55 +32,7 @@ class AboutSettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // App Info Section
-          _buildSectionHeader('App Information', secondaryText),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: themeProvider.cardColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: themeProvider.primaryColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.music_note,
-                    size: 48,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Pancake Tunes',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Version 1.0.0',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: secondaryText,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Storage Section
-          _buildSectionHeader('Storage', secondaryText),
+          _buildSectionHeader('Storage Usage', secondaryText),
           _buildSettingsTile(
             context,
             icon: Icons.storage,
@@ -97,6 +48,10 @@ class AboutSettingsScreen extends StatelessWidget {
             themeProvider: themeProvider,
             onTap: () => _showDownloadsDialog(context, themeProvider, downloadService),
           ),
+          
+          const SizedBox(height: 24),
+          
+          _buildSectionHeader('Storage Management', secondaryText),
           _buildSettingsTile(
             context,
             icon: Icons.delete_outline,
@@ -104,52 +59,6 @@ class AboutSettingsScreen extends StatelessWidget {
             subtitle: 'Free up space on your device',
             themeProvider: themeProvider,
             onTap: () => _showClearCacheDialog(context, themeProvider, settingsProvider),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Legal Section
-          _buildSectionHeader('Legal', secondaryText),
-          _buildSettingsTile(
-            context,
-            icon: Icons.description_outlined,
-            title: 'Terms of Service',
-            themeProvider: themeProvider,
-            onTap: () => _openUrl('https://pancaketunes.com/terms'),
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Policy',
-            themeProvider: themeProvider,
-            onTap: () => _openUrl('https://pancaketunes.com/privacy'),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Support Section
-          _buildSectionHeader('Support', secondaryText),
-          _buildSettingsTile(
-            context,
-            icon: Icons.help_outline,
-            title: 'Help Center',
-            themeProvider: themeProvider,
-            onTap: () => _openUrl('https://pancaketunes.com/help'),
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.bug_report_outlined,
-            title: 'Report a Bug',
-            themeProvider: themeProvider,
-            onTap: () => _openUrl('https://github.com/pancaketunes/issues'),
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.email_outlined,
-            title: 'Contact Us',
-            subtitle: 'support@pancaketunes.com',
-            themeProvider: themeProvider,
-            onTap: () => _openUrl('mailto:support@pancaketunes.com'),
           ),
           
           const SizedBox(height: 100),
@@ -223,13 +132,6 @@ class AboutSettingsScreen extends StatelessWidget {
         onTap: onTap,
       ),
     );
-  }
-
-  void _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 
   void _showDownloadsDialog(BuildContext context, ThemeProvider themeProvider, DownloadService downloadService) {
