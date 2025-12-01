@@ -6,29 +6,27 @@ import '../models/album_model.dart';
 import '../models/artist_model.dart';
 
 class MusicApiService {
-  // Multiple JioSaavn API endpoints to try - updated with more reliable endpoints
+  // Updated working JioSaavn API endpoints - using stable ones
   static const List<String> _saavnBaseUrls = [
-    'https://saavn.dev/api',
-    'https://jio-saavn-api-tau.vercel.app/api',
-    'https://jiosaavn-api-ts.vercel.app/api',
-    'https://jiosaavn-api-2-harsh-xl.vercel.app/api',
     'https://jiosaavn-api-privatecvc2.vercel.app',
-    'https://saavn.me/api',
+    'https://jiosaavn-api.vercel.app',
+    'https://saavn-api-nu.vercel.app',
+    'https://jio-saavn-api.vercel.app',
   ];
   
   // Fallback to iTunes for search variety
   static const String _itunesBaseUrl = 'https://itunes.apple.com';
 
-  // Make request with proper error handling
+  // Make request with proper error handling and timeout
   Future<Map<String, dynamic>?> _fetchJson(String url) async {
     try {
       final response = await http.get(
         Uri.parse(url),
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -40,18 +38,22 @@ class MusicApiService {
     return null;
   }
 
-  // Try multiple JioSaavn API endpoints
+  // Try multiple JioSaavn API endpoints with proper error handling
   Future<Map<String, dynamic>?> _fetchFromSaavn(String endpoint) async {
     for (final baseUrl in _saavnBaseUrls) {
       final url = '$baseUrl$endpoint';
-      final data = await _fetchJson(url);
-      if (data != null) {
-        // Check for success in different API response formats
-        if (data['success'] == true || data['status'] == 'SUCCESS' || data['data'] != null || data['results'] != null) {
+      try {
+        final data = await _fetchJson(url);
+        if (data != null && (data['success'] == true || data['data'] != null || data['results'] != null)) {
+          debugPrint('✅ Success from: $baseUrl');
           return data;
         }
+      } catch (e) {
+        debugPrint('Failed $baseUrl: $e');
+        continue;
       }
     }
+    debugPrint('❌ All JioSaavn endpoints failed for: $endpoint');
     return null;
   }
 
@@ -117,7 +119,8 @@ class MusicApiService {
       try {
         albums.add(AlbumModel.fromJioSaavnJson(album));
       } catch (e) {
-        debugPrint('Error parsing album: $e');
+        // Silently skip failed albums instead of logging each one
+        continue;
       }
     }
     
@@ -157,46 +160,16 @@ class MusicApiService {
     return artists;
   }
 
-  // Search for songs using JioSaavn API (full songs)
+  // Search for songs
   Future<List<SongModel>> searchSongs(String query) async {
     if (query.isEmpty) return [];
     
     try {
-      // Try JioSaavn APIs first for full songs
-      final saavnData = await _fetchFromSaavn(
-        '/search/songs?query=${Uri.encodeComponent(query)}&limit=30'
-      );
+      final saavnData = await _fetchFromSaavn('/search/songs?query=${Uri.encodeComponent(query)}&limit=30');
       
       if (saavnData != null) {
         final songs = _parseSaavnResults(saavnData);
-        if (songs.isNotEmpty) {
-          return songs;
-        }
-      }
-      
-      // Try alternative endpoint format
-      final altData = await _fetchFromSaavn(
-        '/search?query=${Uri.encodeComponent(query)}'
-      );
-      
-      if (altData != null) {
-        final songs = _parseSaavnResults(altData);
-        if (songs.isNotEmpty) {
-          return songs;
-        }
-      }
-      
-      // Fallback to iTunes if JioSaavn fails (30-sec previews)
-      final itunesData = await _fetchJson(
-        '$_itunesBaseUrl/search?term=${Uri.encodeComponent(query)}&media=music&entity=song&limit=30'
-      );
-      
-      if (itunesData != null && itunesData['results'] != null) {
-        final List<dynamic> results = itunesData['results'] ?? [];
-        return results
-            .where((song) => song['kind'] == 'song')
-            .map((song) => SongModel.fromItunesJson(song))
-            .toList();
+        if (songs.isNotEmpty) return songs;
       }
     } catch (e) {
       debugPrint('Search error: $e');
@@ -204,14 +177,12 @@ class MusicApiService {
     return [];
   }
 
-  // Search for albums
+  // Search for albums with better error handling
   Future<List<AlbumModel>> searchAlbums(String query) async {
     if (query.isEmpty) return [];
     
     try {
-      final saavnData = await _fetchFromSaavn(
-        '/search/albums?query=${Uri.encodeComponent(query)}&limit=20'
-      );
+      final saavnData = await _fetchFromSaavn('/search/albums?query=${Uri.encodeComponent(query)}&limit=20');
       
       if (saavnData != null) {
         return _parseAlbumResults(saavnData);
@@ -222,14 +193,12 @@ class MusicApiService {
     return [];
   }
 
-  // Search for artists
+  // Search for artists with better error handling
   Future<List<ArtistModel>> searchArtists(String query) async {
     if (query.isEmpty) return [];
     
     try {
-      final saavnData = await _fetchFromSaavn(
-        '/search/artists?query=${Uri.encodeComponent(query)}&limit=20'
-      );
+      final saavnData = await _fetchFromSaavn('/search/artists?query=${Uri.encodeComponent(query)}&limit=20');
       
       if (saavnData != null) {
         return _parseArtistResults(saavnData);
@@ -274,11 +243,11 @@ class MusicApiService {
     return [];
   }
 
-  // Get trending/top songs
+  // Get trending/top songs - use more reliable queries
   Future<List<SongModel>> getTrendingSongs() async {
     try {
-      final data = await _fetchFromSaavn('/search/songs?query=bollywood hits 2024&limit=30');
-      
+      // Try top hits first
+      final data = await _fetchFromSaavn('/search/songs?query=top hits&limit=30');
       if (data != null) {
         final songs = _parseSaavnResults(data);
         if (songs.isNotEmpty) return songs;
@@ -286,14 +255,14 @@ class MusicApiService {
     } catch (e) {
       debugPrint('Trending songs error: $e');
     }
-    return searchSongs('top hits 2024');
+    // Fallback to search
+    return searchSongs('top songs 2024');
   }
 
-  // Get trending albums
+  // Get trending albums - use more reliable queries
   Future<List<AlbumModel>> getTrendingAlbums() async {
     try {
-      final data = await _fetchFromSaavn('/search/albums?query=bollywood albums 2024&limit=20');
-      
+      final data = await _fetchFromSaavn('/search/albums?query=popular albums&limit=20');
       if (data != null) {
         final albums = _parseAlbumResults(data);
         if (albums.isNotEmpty) return albums;
@@ -301,14 +270,13 @@ class MusicApiService {
     } catch (e) {
       debugPrint('Trending albums error: $e');
     }
-    return searchAlbums('top albums 2024');
+    return searchAlbums('popular albums');
   }
 
-  // Get trending artists
+  // Get trending artists - use more reliable queries
   Future<List<ArtistModel>> getTrendingArtists() async {
     try {
-      final data = await _fetchFromSaavn('/search/artists?query=top bollywood artists&limit=20');
-      
+      final data = await _fetchFromSaavn('/search/artists?query=popular artists&limit=20');
       if (data != null) {
         final artists = _parseArtistResults(data);
         if (artists.isNotEmpty) return artists;
@@ -339,11 +307,10 @@ class MusicApiService {
     return searchSongs('$mood songs');
   }
 
-  // Get album details and songs
+  // Get album songs
   Future<List<SongModel>> getAlbumSongs(String albumId) async {
     try {
       final data = await _fetchFromSaavn('/albums?id=$albumId');
-      
       if (data != null) {
         return _parseSaavnResults(data);
       }
@@ -353,11 +320,10 @@ class MusicApiService {
     return [];
   }
 
-  // Get artist's top songs
+  // Get artist songs
   Future<List<SongModel>> getArtistSongs(String artistId) async {
     try {
-      final data = await _fetchFromSaavn('/artists/$artistId/songs?page=0');
-      
+      final data = await _fetchFromSaavn('/artists/$artistId/songs');
       if (data != null) {
         return _parseSaavnResults(data);
       }

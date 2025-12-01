@@ -192,8 +192,20 @@ class SettingsScreen extends StatelessWidget {
           _buildSettingsTile(
             context,
             icon: Icons.animation,
-            title: 'Animations',
-            subtitle: 'Enable smooth UI animations',
+            title: 'Reduce Animations',
+            subtitle: 'Disable animations for smoother performance',
+            themeProvider: themeProvider,
+            trailing: Switch(
+              value: themeProvider.reduceAnimations,
+              onChanged: (value) => themeProvider.setReduceAnimations(value),
+              activeColor: accentColor,
+            ),
+          ),
+          _buildSettingsTile(
+            context,
+            icon: Icons.speed,
+            title: 'Legacy Animations',
+            subtitle: 'Use old animation system',
             themeProvider: themeProvider,
             trailing: Switch(
               value: settingsProvider.animationsEnabled,

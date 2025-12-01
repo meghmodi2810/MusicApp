@@ -70,7 +70,7 @@ class AlbumModel {
       artistName = json['primaryArtists'] ?? json['artist'] ?? 'Unknown Artist';
     }
 
-    // Get year
+    // Get year - handle both String and int
     int? year;
     final yearData = json['year'];
     if (yearData != null) {
@@ -81,6 +81,17 @@ class AlbumModel {
       }
     }
 
+    // Get song count - FIX: handle both String and int
+    int? songCount;
+    final songCountData = json['songCount'] ?? json['song_count'];
+    if (songCountData != null) {
+      if (songCountData is int) {
+        songCount = songCountData;
+      } else if (songCountData is String) {
+        songCount = int.tryParse(songCountData);
+      }
+    }
+
     return AlbumModel(
       id: json['id']?.toString() ?? '',
       name: _cleanText(json['name'] ?? json['title'] ?? 'Unknown Album'),
@@ -88,7 +99,7 @@ class AlbumModel {
       imageUrl: imageUrl,
       imageUrlHigh: imageUrlHigh,
       year: year,
-      songCount: json['songCount'] ?? json['song_count'],
+      songCount: songCount,
       language: json['language'],
     );
   }

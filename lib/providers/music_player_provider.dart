@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 import '../models/song_model.dart';
+import '../services/recommendation_service.dart';
 
 class MusicPlayerProvider extends ChangeNotifier {
   AudioPlayer _audioPlayer = AudioPlayer();
@@ -271,6 +272,14 @@ class MusicPlayerProvider extends ChangeNotifier {
       }
 
       await _audioPlayer.play();
+      
+      // Track song play for recommendations
+      try {
+        final recommendationService = RecommendationService();
+        await recommendationService.trackSongPlay(song);
+      } catch (e) {
+        debugPrint('Error tracking song play: $e');
+      }
     } catch (e) {
       debugPrint('Error playing song: $e');
       _isLoading = false;

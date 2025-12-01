@@ -5,11 +5,14 @@ import '../models/song_model.dart';
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
 import '../services/music_api_service.dart';
+import '../services/recommendation_service.dart';
 import '../providers/theme_provider.dart';
 import '../providers/music_player_provider.dart';
 import '../providers/auth_provider.dart';
 import 'settings_screen.dart';
 import 'player_screen.dart';
+import 'artist_screen.dart';
+import 'album_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
   final MusicApiService _apiService = MusicApiService();
+  final RecommendationService _recommendationService = RecommendationService();
   List<SongModel> _recommendedSongs = [];
   List<AlbumModel> _recommendedAlbums = [];
   List<ArtistModel> _recommendedArtists = [];
@@ -31,18 +35,23 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadPersonalizedData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadPersonalizedData() async {
     if (!mounted) return;
     
     setState(() => _isLoading = true);
     
     try {
+      // Check if user is new to determine content type
+      final isNewUser = await _recommendationService.isNewUser();
+      
       // Load all data in parallel for faster loading
       final results = await Future.wait([
-        _apiService.getTrendingSongs(),
+        isNewUser 
+            ? _apiService.getTrendingSongs()
+            : _loadPersonalizedSongs(),
         _apiService.getTrendingAlbums(),
         _apiService.getTrendingArtists(),
       ]);
@@ -59,6 +68,15 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<List<SongModel>> _loadPersonalizedSongs() async {
+    try {
+      final query = await _recommendationService.getPersonalizedQuery();
+      return await _apiService.searchSongs(query);
+    } catch (e) {
+      return await _apiService.getTrendingSongs();
     }
   }
 
@@ -86,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       backgroundColor: themeProvider.backgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadData,
+          onRefresh: _loadPersonalizedData,
           color: accentColor,
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
@@ -104,9 +122,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                           Text(
                             _getGreeting(),
                             style: TextStyle(
-                              fontSize: 28,
+                              fontSize: 32,
                               fontWeight: FontWeight.bold,
                               color: textColor,
+                              letterSpacing: -0.5,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -233,6 +252,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Widget _buildSongCard(SongModel song, List<SongModel> playlist, ThemeProvider themeProvider) {
     return GestureDetector(
       onTap: () {
+        // Track song play for recommendations
+        _recommendationService.trackSongPlay(song);
+        
         context.read<MusicPlayerProvider>().playSong(song, playlist: playlist);
         Navigator.push(
           context,
@@ -322,16 +344,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   Widget _buildAlbumCard(AlbumModel album, ThemeProvider themeProvider) {
     return GestureDetector(
-      onTap: () async {
-        // Load and play album songs
-        final songs = await _apiService.getAlbumSongs(album.id);
-        if (songs.isNotEmpty && mounted) {
-          context.read<MusicPlayerProvider>().playSong(songs.first, playlist: songs);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PlayerScreen()),
-          );
-        }
+      onTap: () {
+        // Navigate to album detail screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AlbumScreen(album: album),
+          ),
+        );
       },
       child: SizedBox(
         width: 140,
@@ -416,16 +436,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   Widget _buildArtistCard(ArtistModel artist, ThemeProvider themeProvider) {
     return GestureDetector(
-      onTap: () async {
-        // Load and play artist's top songs
-        final songs = await _apiService.getArtistSongs(artist.id);
-        if (songs.isNotEmpty && mounted) {
-          context.read<MusicPlayerProvider>().playSong(songs.first, playlist: songs);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PlayerScreen()),
-          );
-        }
+      onTap: () {
+        // Navigate to artist detail screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ArtistScreen(artist: artist),
+          ),
+        );
       },
       child: SizedBox(
         width: 120,

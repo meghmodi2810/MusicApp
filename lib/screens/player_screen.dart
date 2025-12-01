@@ -11,70 +11,115 @@ import '../providers/theme_provider.dart';
 import '../models/song_model.dart';
 import 'queue_screen.dart';
 
-class PlayerScreen extends StatelessWidget {
+class PlayerScreen extends StatefulWidget {
   const PlayerScreen({super.key});
+
+  @override
+  State<PlayerScreen> createState() => _PlayerScreenState();
+}
+
+class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final animDuration = themeProvider.getAnimationDuration(const Duration(milliseconds: 300));
+    
+    _controller = AnimationController(
+      duration: animDuration,
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final reduceBlur = themeProvider.reduceAnimations; // Check if animations are reduced
     
-    return Consumer<MusicPlayerProvider>(
-      builder: (context, player, child) {
-        final song = player.currentSong;
-        
-        return Scaffold(
-          extendBodyBehindAppBar: true,
-          body: Stack(
-            children: [
-              // Background with blur effect
-              if (song?.albumArt != null)
-                Positioned.fill(
-                  child: CachedNetworkImage(
-                    imageUrl: song!.highQualityArt,
-                    fit: BoxFit.cover,
-                    errorWidget: (context, url, error) => Container(
-                      color: themeProvider.backgroundColor,
-                    ),
-                  ),
-                ),
-              
-              // Gradient overlay matching theme
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        themeProvider.backgroundColor.withOpacity(0.3),
-                        themeProvider.backgroundColor.withOpacity(0.7),
-                        themeProvider.backgroundColor.withOpacity(0.95),
-                        themeProvider.backgroundColor,
-                      ],
-                      stops: const [0.0, 0.3, 0.6, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Blur effect
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-
-              // Content
-              SafeArea(
-                child: song == null
-                    ? _buildNoSongPlaying(context, themeProvider)
-                    : _buildPlayerContent(context, player, song, themeProvider),
-              ),
-            ],
-          ),
-        );
+    return WillPopScope(
+      onWillPop: () async {
+        if (!themeProvider.reduceAnimations) {
+          await _controller.reverse();
+        }
+        return true;
       },
+      child: Consumer<MusicPlayerProvider>(
+        builder: (context, player, child) {
+          final song = player.currentSong;
+          
+          return Scaffold(
+            extendBodyBehindAppBar: true,
+            backgroundColor: themeProvider.backgroundColor,
+            body: Stack(
+              children: [
+                // Background image - only show blur if animations enabled
+                if (song?.albumArt != null && !reduceBlur)
+                  Positioned.fill(
+                    child: CachedNetworkImage(
+                      imageUrl: song!.albumArt!,
+                      fit: BoxFit.cover,
+                      memCacheHeight: 300,
+                      errorWidget: (context, url, error) => Container(
+                        color: themeProvider.backgroundColor,
+                      ),
+                    ),
+                  ),
+                
+                // Minimal blur when animations enabled, none when disabled
+                if (!reduceBlur)
+                  Positioned.fill(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8), // Reduced from 15
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              themeProvider.backgroundColor.withOpacity(0.6),
+                              themeProvider.backgroundColor.withOpacity(0.85),
+                              themeProvider.backgroundColor.withOpacity(0.95),
+                              themeProvider.backgroundColor,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Content with conditional fade animation
+                reduceBlur
+                    ? SafeArea(
+                        child: song == null
+                            ? _buildNoSongPlaying(context, themeProvider)
+                            : _buildPlayerContent(context, player, song, themeProvider),
+                      )
+                    : FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SafeArea(
+                          child: song == null
+                              ? _buildNoSongPlaying(context, themeProvider)
+                              : _buildPlayerContent(context, player, song, themeProvider),
+                        ),
+                      ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

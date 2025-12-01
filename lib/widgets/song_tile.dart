@@ -6,6 +6,7 @@ import '../providers/music_player_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/recommendation_service.dart';
 import '../screens/player_screen.dart';
 
 class SongTile extends StatelessWidget {
@@ -13,6 +14,8 @@ class SongTile extends StatelessWidget {
   final List<SongModel> playlist;
   final int? index;
   final VoidCallback? onTap;
+  final bool showTrackNumber;
+  final int? trackNumber;
 
   const SongTile({
     super.key,
@@ -20,6 +23,8 @@ class SongTile extends StatelessWidget {
     required this.playlist,
     this.index,
     this.onTap,
+    this.showTrackNumber = false,
+    this.trackNumber,
   });
 
   @override
@@ -45,7 +50,20 @@ class SongTile extends StatelessWidget {
             leading: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (index != null)
+                if (showTrackNumber && trackNumber != null)
+                  SizedBox(
+                    width: 28,
+                    child: Text(
+                      '$trackNumber',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: isPlaying ? accentColor : secondaryText,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  )
+                else if (index != null)
                   SizedBox(
                     width: 28,
                     child: Text(
@@ -58,7 +76,7 @@ class SongTile extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (index != null) const SizedBox(width: 8),
+                if (showTrackNumber || index != null) const SizedBox(width: 8),
                 Stack(
                   children: [
                     ClipRRect(
@@ -70,6 +88,7 @@ class SongTile extends StatelessWidget {
                             ? CachedNetworkImage(
                                 imageUrl: song.albumArt!,
                                 fit: BoxFit.cover,
+                                memCacheWidth: 100,
                                 placeholder: (context, url) => Container(
                                   color: accentColor.withOpacity(0.1),
                                   child: Icon(Icons.music_note, color: secondaryText),
@@ -144,6 +163,10 @@ class SongTile extends StatelessWidget {
               ],
             ),
             onTap: () {
+              // Track song play for recommendations
+              final recommendationService = RecommendationService();
+              recommendationService.trackSongPlay(song);
+              
               player.playSong(song, playlist: playlist);
               
               final authProvider = Provider.of<AuthProvider>(context, listen: false);
