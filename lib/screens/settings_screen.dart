@@ -187,35 +187,6 @@ class SettingsScreen extends StatelessWidget {
           
           const SizedBox(height: 24),
           
-          // Performance Section
-          _buildSectionHeader(context, 'Performance', secondaryText),
-          _buildSettingsTile(
-            context,
-            icon: Icons.animation,
-            title: 'Reduce Animations',
-            subtitle: 'Disable animations for smoother performance',
-            themeProvider: themeProvider,
-            trailing: Switch(
-              value: themeProvider.reduceAnimations,
-              onChanged: (value) => themeProvider.setReduceAnimations(value),
-              activeColor: accentColor,
-            ),
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.speed,
-            title: 'Legacy Animations',
-            subtitle: 'Use old animation system',
-            themeProvider: themeProvider,
-            trailing: Switch(
-              value: settingsProvider.animationsEnabled,
-              onChanged: (value) => settingsProvider.setAnimationsEnabled(value),
-              activeColor: accentColor,
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
           // About Section
           _buildSectionHeader(context, 'About', secondaryText),
           _buildSettingsTile(

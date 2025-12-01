@@ -8,8 +8,9 @@ import '../models/album_model.dart';
 import '../models/artist_model.dart';
 import '../services/music_api_service.dart';
 import '../providers/theme_provider.dart';
-import '../providers/music_player_provider.dart';
 import '../widgets/song_tile.dart';
+import 'album_screen.dart';
+import 'artist_screen.dart';
 
 enum SearchFilter { songs, albums, artists }
 
@@ -521,13 +522,13 @@ class _SearchScreenState extends State<SearchScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             trailing: Icon(Icons.chevron_right, color: themeProvider.secondaryTextColor),
-            onTap: () async {
-              // Fetch and play album songs
-              final songs = await _apiService.getAlbumSongs(album.id);
-              if (songs.isNotEmpty && mounted) {
-                final player = Provider.of<MusicPlayerProvider>(context, listen: false);
-                player.playSong(songs[0], playlist: songs);
-              }
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AlbumScreen(album: album),
+                ),
+              );
             },
           ),
         );
@@ -577,13 +578,13 @@ class _SearchScreenState extends State<SearchScreen> {
               style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 12),
             ),
             trailing: Icon(Icons.chevron_right, color: themeProvider.secondaryTextColor),
-            onTap: () async {
-              // Fetch and play artist songs
-              final songs = await _apiService.getArtistSongs(artist.id);
-              if (songs.isNotEmpty && mounted) {
-                final player = Provider.of<MusicPlayerProvider>(context, listen: false);
-                player.playSong(songs[0], playlist: songs);
-              }
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ArtistScreen(artist: artist),
+                ),
+              );
             },
           ),
         );

@@ -52,8 +52,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         isNewUser 
             ? _apiService.getTrendingSongs()
             : _loadPersonalizedSongs(),
-        _apiService.getTrendingAlbums(),
-        _apiService.getTrendingArtists(),
+        isNewUser
+            ? _apiService.getTrendingAlbums()
+            : _loadPersonalizedAlbums(),
+        isNewUser
+            ? _apiService.getTrendingArtists()
+            : _loadPersonalizedArtists(),
       ]);
       
       if (mounted) {
@@ -77,6 +81,26 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       return await _apiService.searchSongs(query);
     } catch (e) {
       return await _apiService.getTrendingSongs();
+    }
+  }
+
+  Future<List<AlbumModel>> _loadPersonalizedAlbums() async {
+    try {
+      final query = await _recommendationService.getPersonalizedQuery();
+      final albums = await _apiService.searchAlbums(query);
+      return albums.take(10).toList();
+    } catch (e) {
+      return await _apiService.getTrendingAlbums();
+    }
+  }
+
+  Future<List<ArtistModel>> _loadPersonalizedArtists() async {
+    try {
+      final query = await _recommendationService.getPersonalizedQuery();
+      final artists = await _apiService.searchArtists(query);
+      return artists.take(10).toList();
+    } catch (e) {
+      return await _apiService.getTrendingArtists();
     }
   }
 
@@ -122,18 +146,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                           Text(
                             _getGreeting(),
                             style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
                               color: textColor,
-                              letterSpacing: -0.5,
+                              letterSpacing: -1,
+                              height: 1.1,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Text(
                             userName,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
                               color: themeProvider.secondaryTextColor,
+                              letterSpacing: 0.2,
                             ),
                           ),
                         ],
@@ -193,9 +220,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         child: Text(
           title,
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
             color: textColor,
+            letterSpacing: -0.5,
           ),
         ),
       ),
@@ -301,17 +329,20 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               style: TextStyle(
                 color: themeProvider.textColor,
                 fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontSize: 14,
+                letterSpacing: -0.2,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               song.artist,
               style: TextStyle(
                 color: themeProvider.secondaryTextColor,
                 fontSize: 12,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.1,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -393,17 +424,20 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               style: TextStyle(
                 color: themeProvider.textColor,
                 fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontSize: 14,
+                letterSpacing: -0.2,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               album.artist,
               style: TextStyle(
                 color: themeProvider.secondaryTextColor,
                 fontSize: 12,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.1,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -483,7 +517,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               style: TextStyle(
                 color: themeProvider.textColor,
                 fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontSize: 14,
+                letterSpacing: -0.2,
               ),
               maxLines: 2,
               textAlign: TextAlign.center,
