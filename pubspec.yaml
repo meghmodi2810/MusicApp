@@ -73,6 +73,9 @@ dependencies:
   
   # Random string generation for OTP
   random_string: ^2.3.1
+  
+  # URL launcher for opening external links
+  url_launcher: ^6.2.2
 
 dev_dependencies:
   flutter_test:

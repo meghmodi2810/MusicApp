@@ -18,6 +18,11 @@ class MusicPlayerProvider extends ChangeNotifier {
   StreamSubscription? _durationSubscription;
   StreamSubscription? _processingStateSubscription;
   
+  // PERFORMANCE OPTIMIZATION: Throttle timer for position updates
+  Timer? _positionThrottleTimer;
+  Duration _lastEmittedPosition = Duration.zero;
+  static const _positionUpdateInterval = Duration(milliseconds: 200); // 5 updates/sec instead of 60
+  
   SongModel? _currentSong;
   List<SongModel> _playlist = [];
   List<SongModel> _queue = [];
@@ -38,6 +43,11 @@ class MusicPlayerProvider extends ChangeNotifier {
   // Volume normalization
   bool _volumeNormalization = false;
   double _normalizedVolume = 1.0;
+
+  // PERFORMANCE: ValueNotifier for position (avoids full widget rebuilds)
+  final ValueNotifier<Duration> positionNotifier = ValueNotifier(Duration.zero);
+  final ValueNotifier<Duration> durationNotifier = ValueNotifier(Duration.zero);
+  final ValueNotifier<bool> playingNotifier = ValueNotifier(false);
 
   // Getters
   SongModel? get currentSong => _currentSong;
@@ -75,6 +85,7 @@ class MusicPlayerProvider extends ChangeNotifier {
           androidNotificationChannelName: 'Pancake Tunes',
           androidNotificationOngoing: true,
           androidShowNotificationBadge: true,
+          androidStopForegroundOnPause: true, // Changed to true to fix assertion
         ),
       );
     } catch (e) {
@@ -90,14 +101,28 @@ class MusicPlayerProvider extends ChangeNotifier {
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _processingStateSubscription?.cancel();
+    _positionThrottleTimer?.cancel();
 
     _playerStateSubscription = player.playerStateStream.listen((state) {
       _isPlaying = state.playing;
+      playingNotifier.value = state.playing;
       notifyListeners();
     });
 
+    // PERFORMANCE FIX: Throttle position updates
     _positionSubscription = player.positionStream.listen((pos) {
       _position = pos;
+      positionNotifier.value = pos;
+      
+      // Only notify listeners every 200ms instead of 60fps
+      if (_positionThrottleTimer == null || !_positionThrottleTimer!.isActive) {
+        if ((pos - _lastEmittedPosition).abs() > const Duration(milliseconds: 200)) {
+          _lastEmittedPosition = pos;
+          notifyListeners();
+          
+          _positionThrottleTimer = Timer(_positionUpdateInterval, () {});
+        }
+      }
       
       // Check for crossfade trigger
       if (_crossfadeEnabled && !_isCrossfading && _duration.inSeconds > 0) {
@@ -106,12 +131,15 @@ class MusicPlayerProvider extends ChangeNotifier {
           _startCrossfade();
         }
       }
-      
-      notifyListeners();
     });
 
     _durationSubscription = player.durationStream.listen((dur) {
       _duration = dur ?? Duration.zero;
+      durationNotifier.value = dur ?? Duration.zero;
+      
+      // Update notification
+      _audioHandler?.updateDuration(dur);
+      
       notifyListeners();
     });
 
@@ -123,31 +151,6 @@ class MusicPlayerProvider extends ChangeNotifier {
                    state == ProcessingState.buffering;
       notifyListeners();
     });
-  }
-
-  // Configure crossfade
-  void setCrossfade(bool enabled, int durationSeconds) {
-    _crossfadeEnabled = enabled;
-    _crossfadeDuration = durationSeconds.clamp(1, 12);
-    notifyListeners();
-  }
-
-  // Configure volume normalization
-  void setVolumeNormalization(bool enabled) {
-    _volumeNormalization = enabled;
-    if (enabled) {
-      _applyVolumeNormalization();
-    } else {
-      _audioPlayer.setVolume(_volume);
-    }
-    notifyListeners();
-  }
-
-  void _applyVolumeNormalization() {
-    // Simple normalization - reduces loud peaks
-    // For true normalization, you'd analyze audio loudness (LUFS)
-    _normalizedVolume = _volume * 0.85;
-    _audioPlayer.setVolume(_normalizedVolume);
   }
 
   Future<void> _startCrossfade() async {
@@ -461,6 +464,30 @@ class MusicPlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Configure crossfade
+  void setCrossfade(bool enabled, int durationSeconds) {
+    _crossfadeEnabled = enabled;
+    _crossfadeDuration = durationSeconds.clamp(1, 12);
+    notifyListeners();
+  }
+
+  // Configure volume normalization
+  void setVolumeNormalization(bool enabled) {
+    _volumeNormalization = enabled;
+    if (enabled) {
+      _applyVolumeNormalization();
+    } else {
+      _audioPlayer.setVolume(_volume);
+    }
+    notifyListeners();
+  }
+
+  void _applyVolumeNormalization() {
+    // Simple normalization - reduces loud peaks
+    _normalizedVolume = _volume * 0.85;
+    _audioPlayer.setVolume(_normalizedVolume);
+  }
+
   Future<void> stop() async {
     await _audioPlayer.stop();
     _currentSong = null;
@@ -469,12 +496,16 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _positionThrottleTimer?.cancel();
     _playerStateSubscription?.cancel();
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _processingStateSubscription?.cancel();
     _crossfadePlayer?.dispose();
     _audioPlayer.dispose();
+    positionNotifier.dispose();
+    durationNotifier.dispose();
+    playingNotifier.dispose();
     super.dispose();
   }
 }

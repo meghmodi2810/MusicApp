@@ -1,32 +1,49 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 
 class AudioPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _audioPlayer;
+  late StreamSubscription<PlaybackEvent> _playbackEventSubscription;
   
   AudioPlayerHandler(this._audioPlayer) {
-    // Listen to player state changes
-    _audioPlayer.playerStateStream.listen((state) {
-      playbackState.add(playbackState.value.copyWith(
-        playing: state.playing,
-        processingState: _mapProcessingState(state.processingState),
-      ));
-    });
+    // Broadcast playback state changes
+    _playbackEventSubscription = _audioPlayer.playbackEventStream.listen(
+      _broadcastState,
+      onError: (Object e, StackTrace st) {
+        if (kDebugMode) {
+          print('Playback error: $e');
+        }
+      },
+    );
+  }
 
-    // Listen to position changes
-    _audioPlayer.positionStream.listen((position) {
-      playbackState.add(playbackState.value.copyWith(
-        updatePosition: position,
-      ));
-    });
-
-    // Listen to duration changes
-    _audioPlayer.durationStream.listen((duration) {
-      final oldState = playbackState.value;
-      playbackState.add(oldState.copyWith(
-        updatePosition: oldState.updatePosition,
-      ));
-    });
+  // Broadcast the current state to all audio_service clients
+  Future<void> _broadcastState(PlaybackEvent event) async {
+    final playing = _audioPlayer.playing;
+    final processingState = _mapProcessingState(_audioPlayer.processingState);
+    
+    playbackState.add(playbackState.value.copyWith(
+      controls: [
+        MediaControl.skipToPrevious,
+        if (playing) MediaControl.pause else MediaControl.play,
+        MediaControl.skipToNext,
+        MediaControl.stop,
+      ],
+      systemActions: const {
+        MediaAction.seek,
+        MediaAction.seekForward,
+        MediaAction.seekBackward,
+      },
+      androidCompactActionIndices: const [0, 1, 2],
+      processingState: processingState,
+      playing: playing,
+      updatePosition: _audioPlayer.position,
+      bufferedPosition: _audioPlayer.bufferedPosition,
+      speed: _audioPlayer.speed,
+      queueIndex: 0,
+    ));
   }
 
   AudioProcessingState _mapProcessingState(ProcessingState state) {
@@ -45,31 +62,38 @@ class AudioPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler
   }
 
   @override
-  Future<void> play() => _audioPlayer.play();
+  Future<void> play() async {
+    await _audioPlayer.play();
+  }
 
   @override
-  Future<void> pause() => _audioPlayer.pause();
+  Future<void> pause() async {
+    await _audioPlayer.pause();
+  }
 
   @override
-  Future<void> seek(Duration position) => _audioPlayer.seek(position);
+  Future<void> seek(Duration position) async {
+    await _audioPlayer.seek(position);
+  }
 
   @override
   Future<void> stop() async {
     await _audioPlayer.stop();
+    await _playbackEventSubscription.cancel();
     await super.stop();
   }
 
   @override
   Future<void> skipToNext() async {
-    // This will be handled by the provider
+    // Handled by MusicPlayerProvider
   }
 
   @override
   Future<void> skipToPrevious() async {
-    // This will be handled by the provider
+    // Handled by MusicPlayerProvider
   }
 
-  // Update the notification with current song info
+  // Custom method to update media item (not overriding base class)
   Future<void> updateSongMediaItem(String title, String artist, String? artUri, Duration? duration) async {
     mediaItem.add(MediaItem(
       id: title,
@@ -77,6 +101,15 @@ class AudioPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler
       artist: artist,
       duration: duration,
       artUri: artUri != null ? Uri.parse(artUri) : null,
+      playable: true,
     ));
+  }
+
+  // Update duration separately
+  Future<void> updateDuration(Duration? duration) async {
+    final current = mediaItem.value;
+    if (current != null && duration != null) {
+      mediaItem.add(current.copyWith(duration: duration));
+    }
   }
 }
