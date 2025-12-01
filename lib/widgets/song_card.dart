@@ -35,21 +35,10 @@ class SongCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         context.read<MusicPlayerProvider>().playSong(song, playlist: playlist);
+        // Use simple MaterialPageRoute instead of custom transitions
         Navigator.push(
           context,
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const PlayerScreen(),
-            transitionDuration: const Duration(milliseconds: 300),
-            transitionsBuilder: (_, animation, __, child) {
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 1),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-                child: child,
-              );
-            },
-          ),
+          MaterialPageRoute(builder: (_) => const PlayerScreen()),
         );
       },
       onLongPress: () => _showSongOptions(context, themeProvider, downloadService),
@@ -61,49 +50,37 @@ class SongCard extends StatelessWidget {
             // Album Art with Play Button Overlay
             Stack(
               children: [
-                Hero(
-                  tag: 'album_art_${song.id}',
-                  child: Container(
-                    height: 150,
-                    width: 150,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accentColor.withOpacity(0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: song.albumArt != null
-                          ? CachedNetworkImage(
-                              imageUrl: song.albumArt!,
-                              fit: BoxFit.cover,
-                              memCacheWidth: 300,
-                              fadeInDuration: const Duration(milliseconds: 150),
-                              placeholder: (context, url) => Container(
-                                color: cardColor,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.music_note,
-                                    color: secondaryText,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: cardColor,
+                Container(
+                  height: 150,
+                  width: 150,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accentColor.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: song.albumArt != null
+                        ? CachedNetworkImage(
+                            imageUrl: song.albumArt!,
+                            fit: BoxFit.cover,
+                            memCacheWidth: 300,
+                            placeholder: (context, url) => Container(
+                              color: cardColor,
+                              child: Center(
                                 child: Icon(
                                   Icons.music_note,
                                   color: secondaryText,
                                   size: 40,
                                 ),
                               ),
-                            )
-                          : Container(
+                            ),
+                            errorWidget: (context, url, error) => Container(
                               color: cardColor,
                               child: Icon(
                                 Icons.music_note,
@@ -111,7 +88,15 @@ class SongCard extends StatelessWidget {
                                 size: 40,
                               ),
                             ),
-                    ),
+                          )
+                        : Container(
+                            color: cardColor,
+                            child: Icon(
+                              Icons.music_note,
+                              color: secondaryText,
+                              size: 40,
+                            ),
+                          ),
                   ),
                 ),
                 // Download indicator
@@ -121,7 +106,7 @@ class SongCard extends StatelessWidget {
                     top: 8,
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.green,
                         shape: BoxShape.circle,
                       ),
@@ -158,13 +143,6 @@ class SongCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: accentColor,
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: accentColor.withOpacity(0.4),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
                     ),
                     child: const Icon(
                       Icons.play_arrow_rounded,
@@ -241,6 +219,7 @@ class SongCard extends StatelessWidget {
                           width: 60,
                           height: 60,
                           fit: BoxFit.cover,
+                          memCacheWidth: 120,
                         )
                       : Container(
                           width: 60,
@@ -297,10 +276,10 @@ class SongCard extends StatelessWidget {
               playerProvider.addToQueue(song);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Added to queue'),
+                  content: const Text('Added to queue'),
                   backgroundColor: themeProvider.primaryColor,
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  duration: const Duration(seconds: 1),
                 ),
               );
             },
@@ -313,10 +292,10 @@ class SongCard extends StatelessWidget {
               playerProvider.addToQueueNext(song);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Will play next'),
+                  content: const Text('Will play next'),
                   backgroundColor: themeProvider.primaryColor,
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  duration: const Duration(seconds: 1),
                 ),
               );
             },
@@ -335,7 +314,7 @@ class SongCard extends StatelessWidget {
                       content: Text(success ? 'Download started' : 'Download failed'),
                       backgroundColor: success ? themeProvider.primaryColor : Colors.red,
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      duration: const Duration(seconds: 1),
                     ),
                   );
                 }
@@ -343,7 +322,7 @@ class SongCard extends StatelessWidget {
             ),
           if (isDownloading)
             ListTile(
-              leading: Icon(Icons.cancel_outlined, color: Colors.red),
+              leading: const Icon(Icons.cancel_outlined, color: Colors.red),
               title: Text('Cancel Download', style: TextStyle(color: themeProvider.textColor)),
               onTap: () {
                 Navigator.pop(context);
@@ -352,17 +331,17 @@ class SongCard extends StatelessWidget {
             ),
           if (isDownloaded)
             ListTile(
-              leading: Icon(Icons.delete_outline, color: Colors.red),
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: Text('Remove Download', style: TextStyle(color: themeProvider.textColor)),
               onTap: () {
                 Navigator.pop(context);
                 downloadService.deleteDownload(song.id);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Download removed'),
+                    content: const Text('Download removed'),
                     backgroundColor: themeProvider.primaryColor,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               },

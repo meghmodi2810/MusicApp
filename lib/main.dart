@@ -113,11 +113,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void _onTabTapped(int index) {
     if (_currentIndex != index) {
       setState(() => _currentIndex = index);
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-      );
+      // Use jumpToPage instead of animateToPage for instant navigation
+      _pageController.jumpToPage(index);
     }
   }
 
@@ -170,9 +167,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: () => _onTabTapped(index),
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,

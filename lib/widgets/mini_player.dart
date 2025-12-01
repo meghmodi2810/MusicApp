@@ -19,20 +19,10 @@ class MiniPlayer extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
+            // Use simple MaterialPageRoute instead of PageRouteBuilder
             Navigator.push(
               context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => const PlayerScreen(),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  return SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 1),
-                      end: Offset.zero,
-                    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-                    child: child,
-                  );
-                },
-              ),
+              MaterialPageRoute(builder: (_) => const PlayerScreen()),
             );
           },
           child: Container(
@@ -42,8 +32,8 @@ class MiniPlayer extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: themeProvider.primaryColor.withOpacity(0.15),
-                  blurRadius: 10,
+                  color: themeProvider.primaryColor.withOpacity(0.1),
+                  blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
               ],
@@ -56,30 +46,28 @@ class MiniPlayer extends StatelessWidget {
                   child: Row(
                     children: [
                       // Album Art
-                      Hero(
-                        tag: 'album_art',
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: song.albumArt != null
-                                ? CachedNetworkImage(
-                                    imageUrl: song.albumArt!,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      color: themeProvider.primaryColor.withOpacity(0.1),
-                                    ),
-                                    errorWidget: (context, url, error) => Container(
-                                      color: themeProvider.primaryColor.withOpacity(0.1),
-                                      child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
-                                    ),
-                                  )
-                                : Container(
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: song.albumArt != null
+                              ? CachedNetworkImage(
+                                  imageUrl: song.albumArt!,
+                                  fit: BoxFit.cover,
+                                  memCacheWidth: 96,
+                                  placeholder: (context, url) => Container(
+                                    color: themeProvider.primaryColor.withOpacity(0.1),
+                                  ),
+                                  errorWidget: (context, url, error) => Container(
                                     color: themeProvider.primaryColor.withOpacity(0.1),
                                     child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
                                   ),
-                          ),
+                                )
+                              : Container(
+                                  color: themeProvider.primaryColor.withOpacity(0.1),
+                                  child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                                ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -120,13 +108,6 @@ class MiniPlayer extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: themeProvider.primaryColor,
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: themeProvider.primaryColor.withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
                         ),
                         child: IconButton(
                           padding: EdgeInsets.zero,

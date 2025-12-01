@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/song_model.dart';
+import '../models/album_model.dart';
+import '../models/artist_model.dart';
 
 class MusicApiService {
   // Multiple JioSaavn API endpoints to try - updated with more reliable endpoints
@@ -89,6 +91,72 @@ class MusicApiService {
     return songs;
   }
 
+  // Parse albums from different API response formats
+  List<AlbumModel> _parseAlbumResults(Map<String, dynamic> data) {
+    List<dynamic> results = [];
+    
+    // Try different response structures
+    if (data['data'] != null) {
+      if (data['data'] is List) {
+        results = data['data'];
+      } else if (data['data']['results'] != null) {
+        results = data['data']['results'];
+      } else if (data['data']['albums'] != null) {
+        results = data['data']['albums'];
+      }
+    } else if (data['results'] != null) {
+      results = data['results'];
+    } else if (data['albums'] != null) {
+      results = data['albums'];
+    }
+    
+    if (results.isEmpty) return [];
+    
+    final albums = <AlbumModel>[];
+    for (final album in results) {
+      try {
+        albums.add(AlbumModel.fromJioSaavnJson(album));
+      } catch (e) {
+        debugPrint('Error parsing album: $e');
+      }
+    }
+    
+    return albums;
+  }
+
+  // Parse artists from different API response formats
+  List<ArtistModel> _parseArtistResults(Map<String, dynamic> data) {
+    List<dynamic> results = [];
+    
+    // Try different response structures
+    if (data['data'] != null) {
+      if (data['data'] is List) {
+        results = data['data'];
+      } else if (data['data']['results'] != null) {
+        results = data['data']['results'];
+      } else if (data['data']['artists'] != null) {
+        results = data['data']['artists'];
+      }
+    } else if (data['results'] != null) {
+      results = data['results'];
+    } else if (data['artists'] != null) {
+      results = data['artists'];
+    }
+    
+    if (results.isEmpty) return [];
+    
+    final artists = <ArtistModel>[];
+    for (final artist in results) {
+      try {
+        artists.add(ArtistModel.fromJioSaavnJson(artist));
+      } catch (e) {
+        debugPrint('Error parsing artist: $e');
+      }
+    }
+    
+    return artists;
+  }
+
   // Search for songs using JioSaavn API (full songs)
   Future<List<SongModel>> searchSongs(String query) async {
     if (query.isEmpty) return [];
@@ -132,6 +200,42 @@ class MusicApiService {
       }
     } catch (e) {
       debugPrint('Search error: $e');
+    }
+    return [];
+  }
+
+  // Search for albums
+  Future<List<AlbumModel>> searchAlbums(String query) async {
+    if (query.isEmpty) return [];
+    
+    try {
+      final saavnData = await _fetchFromSaavn(
+        '/search/albums?query=${Uri.encodeComponent(query)}&limit=20'
+      );
+      
+      if (saavnData != null) {
+        return _parseAlbumResults(saavnData);
+      }
+    } catch (e) {
+      debugPrint('Album search error: $e');
+    }
+    return [];
+  }
+
+  // Search for artists
+  Future<List<ArtistModel>> searchArtists(String query) async {
+    if (query.isEmpty) return [];
+    
+    try {
+      final saavnData = await _fetchFromSaavn(
+        '/search/artists?query=${Uri.encodeComponent(query)}&limit=20'
+      );
+      
+      if (saavnData != null) {
+        return _parseArtistResults(saavnData);
+      }
+    } catch (e) {
+      debugPrint('Artist search error: $e');
     }
     return [];
   }
@@ -185,6 +289,36 @@ class MusicApiService {
     return searchSongs('top hits 2024');
   }
 
+  // Get trending albums
+  Future<List<AlbumModel>> getTrendingAlbums() async {
+    try {
+      final data = await _fetchFromSaavn('/search/albums?query=bollywood albums 2024&limit=20');
+      
+      if (data != null) {
+        final albums = _parseAlbumResults(data);
+        if (albums.isNotEmpty) return albums;
+      }
+    } catch (e) {
+      debugPrint('Trending albums error: $e');
+    }
+    return searchAlbums('top albums 2024');
+  }
+
+  // Get trending artists
+  Future<List<ArtistModel>> getTrendingArtists() async {
+    try {
+      final data = await _fetchFromSaavn('/search/artists?query=top bollywood artists&limit=20');
+      
+      if (data != null) {
+        final artists = _parseArtistResults(data);
+        if (artists.isNotEmpty) return artists;
+      }
+    } catch (e) {
+      debugPrint('Trending artists error: $e');
+    }
+    return searchArtists('top artists');
+  }
+
   // Get new releases
   Future<List<SongModel>> getNewReleases() async {
     try {
@@ -205,7 +339,7 @@ class MusicApiService {
     return searchSongs('$mood songs');
   }
 
-  // Get album details
+  // Get album details and songs
   Future<List<SongModel>> getAlbumSongs(String albumId) async {
     try {
       final data = await _fetchFromSaavn('/albums?id=$albumId');
