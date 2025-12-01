@@ -25,7 +25,7 @@ class ThemeProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final schemeIndex = prefs.getInt('colorScheme') ?? 0;
     _colorScheme = AppColorScheme.values[schemeIndex.clamp(0, AppColorScheme.values.length - 1)];
-    _reduceAnimations = prefs.getBool('reduceAnimations') ?? false; // NEW: Load animation preference
+    _reduceAnimations = prefs.getBool('reduceAnimations') ?? true; // Changed default to TRUE
     notifyListeners();
   }
 
