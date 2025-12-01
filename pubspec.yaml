@@ -17,6 +17,7 @@ dependencies:
   # Audio player
   just_audio: ^0.9.40
   audio_session: ^0.1.21
+  audio_service: ^0.18.15
   
   # HTTP requests for API
   http: ^1.2.2

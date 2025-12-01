@@ -2,12 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:audio_service/audio_service.dart';
 import '../models/song_model.dart';
 import '../services/recommendation_service.dart';
+import '../services/audio_handler_service.dart';
 
 class MusicPlayerProvider extends ChangeNotifier {
   AudioPlayer _audioPlayer = AudioPlayer();
   AudioPlayer? _crossfadePlayer; // Secondary player for crossfade
+  AudioPlayerHandler? _audioHandler;
   
   // Stream subscriptions for cleanup
   StreamSubscription? _playerStateSubscription;
@@ -63,6 +66,17 @@ class MusicPlayerProvider extends ChangeNotifier {
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
+      
+      // Initialize audio service for notifications
+      _audioHandler = await AudioService.init(
+        builder: () => AudioPlayerHandler(_audioPlayer),
+        config: const AudioServiceConfig(
+          androidNotificationChannelId: 'com.pancaketunes.app.channel.audio',
+          androidNotificationChannelName: 'Pancake Tunes',
+          androidNotificationOngoing: true,
+          androidShowNotificationBadge: true,
+        ),
+      );
     } catch (e) {
       debugPrint('Error configuring audio session: $e');
     }
@@ -270,6 +284,14 @@ class MusicPlayerProvider extends ChangeNotifier {
       if (_volumeNormalization) {
         _applyVolumeNormalization();
       }
+
+      // Update notification with song info
+      await _audioHandler?.updateSongMediaItem(
+        song.title,
+        song.artist,
+        song.albumArt,
+        _duration,
+      );
 
       await _audioPlayer.play();
       
