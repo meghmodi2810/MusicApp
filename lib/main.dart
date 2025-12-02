@@ -10,6 +10,7 @@ import 'services/download_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/library_screen.dart';
+import 'screens/first_time_setup_screen.dart';
 import 'widgets/mini_player.dart';
 
 void main() async {
@@ -79,7 +80,15 @@ class MyApp extends StatelessWidget {
             theme: themeProvider.theme,
             // Disable default animations for better performance
             themeAnimationDuration: Duration.zero,
-            home: const MainScreen(),
+            home: Consumer<AuthProvider>(
+              builder: (context, authProvider, _) {
+                // Show first-time setup if no user exists
+                if (!authProvider.isLoggedIn) {
+                  return const FirstTimeSetupScreen();
+                }
+                return const MainScreen();
+              },
+            ),
           );
         },
       ),

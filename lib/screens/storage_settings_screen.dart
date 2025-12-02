@@ -4,8 +4,23 @@ import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/download_service.dart';
 
-class StorageSettingsScreen extends StatelessWidget {
+class StorageSettingsScreen extends StatefulWidget {
   const StorageSettingsScreen({super.key});
+
+  @override
+  State<StorageSettingsScreen> createState() => _StorageSettingsScreenState();
+}
+
+class _StorageSettingsScreenState extends State<StorageSettingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // FIXED: Calculate actual cache size on screen load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
+      settingsProvider.calculateCacheSize();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

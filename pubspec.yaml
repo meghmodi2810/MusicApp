@@ -63,11 +63,6 @@ dependencies:
   # Form validation
   email_validator: ^2.1.17
   
-  # Firebase for authentication and cloud storage
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.15.3
-  cloud_firestore: ^4.13.6
-  
   # OTP and email verification
   mailer: ^6.0.1
   
@@ -76,6 +71,12 @@ dependencies:
   
   # URL launcher for opening external links
   url_launcher: ^6.2.2
+  
+  # File picker for import/export
+  file_picker: ^10.3.7
+  
+  # Share files for export
+  share_plus: ^12.0.1
 
 dev_dependencies:
   flutter_test:

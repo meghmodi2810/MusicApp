@@ -15,6 +15,7 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isLoggedIn => _currentUser != null;
   int? get userId => _currentUser?['id'] as int?;
+  String get displayName => _currentUser?['display_name'] as String? ?? 'User';
 
   AuthProvider() {
     _checkLoginStatus();
@@ -34,21 +35,19 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> register({
-    required String username,
-    required String email,
-    required String password,
-    required String displayName,
-  }) async {
+  // UPDATED: Create anonymous user with just display name
+  Future<bool> createAnonymousUser(String displayName) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
+      // Create a simple anonymous user
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
       final user = await _db.createUser(
-        username: username,
-        email: email,
-        password: password,
+        username: 'user_$timestamp',
+        email: 'user_$timestamp@local',
+        password: 'local_user', // Not used for authentication
         displayName: displayName,
       );
 
@@ -62,35 +61,6 @@ class AuthProvider extends ChangeNotifier {
       }
 
       _error = 'Failed to create user';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> login(String usernameOrEmail, String password) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final user = await _db.login(usernameOrEmail, password);
-
-      if (user != null) {
-        _currentUser = user;
-        await _saveLoginStatus(user['id'] as int);
-        await _loadUserSettings();
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-
-      _error = 'Invalid username/email or password';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -135,6 +105,11 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = await _db.getUser(_currentUser!['id'] as int);
       notifyListeners();
     }
+  }
+
+  // Update display name
+  Future<void> updateDisplayName(String newName) async {
+    await updateProfile({'display_name': newName});
   }
 
   void clearError() {

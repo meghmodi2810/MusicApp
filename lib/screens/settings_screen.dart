@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
-import 'login_screen.dart';
 import 'appearance_settings_screen.dart';
 import 'playback_settings_screen.dart';
 import 'about_settings_screen.dart';
 import 'storage_settings_screen.dart';
 import 'streaming_quality_settings_screen.dart';
+import 'data_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -38,11 +38,7 @@ class SettingsScreen extends StatelessWidget {
         children: [
           // Account Section
           _buildSectionHeader(context, 'Account', secondaryText),
-          if (authProvider.isLoggedIn) ...[
-            _buildAccountCard(context, authProvider, themeProvider),
-          ] else ...[
-            _buildLoginPrompt(context, themeProvider),
-          ],
+          _buildAccountCard(context, authProvider, themeProvider),
           
           const SizedBox(height: 24),
           
@@ -105,6 +101,21 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
           
+          // NEW: Data backup and restore
+          _buildSettingsCategoryTile(
+            context,
+            icon: Icons.backup_outlined,
+            title: 'Data',
+            subtitle: 'Backup and restore your data',
+            themeProvider: themeProvider,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DataSettingsScreen()),
+              );
+            },
+          ),
+          
           _buildSettingsCategoryTile(
             context,
             icon: Icons.info_outline,
@@ -118,28 +129,6 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Logout Button
-          if (authProvider.isLoggedIn) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: OutlinedButton.icon(
-                onPressed: () => _showLogoutDialog(context, authProvider, themeProvider),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.logout),
-                label: const Text('Log Out'),
-              ),
-            ),
-          ],
           
           const SizedBox(height: 100),
         ],
@@ -162,7 +151,6 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildAccountCard(BuildContext context, AuthProvider authProvider, ThemeProvider themeProvider) {
-    final user = authProvider.currentUser;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -176,7 +164,7 @@ class SettingsScreen extends StatelessWidget {
             radius: 30,
             backgroundColor: themeProvider.primaryColor,
             child: Text(
-              (user?['display_name'] ?? 'U')[0].toUpperCase(),
+              authProvider.displayName[0].toUpperCase(),
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -190,7 +178,7 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user?['display_name'] ?? 'User',
+                  authProvider.displayName,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -199,7 +187,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  user?['email'] ?? '',
+                  'Pancake Tunes User',
                   style: TextStyle(
                     fontSize: 14,
                     color: themeProvider.secondaryTextColor,
@@ -214,60 +202,6 @@ class SettingsScreen extends StatelessWidget {
               color: themeProvider.secondaryTextColor,
             ),
             onPressed: () => _showEditProfileDialog(context, authProvider, themeProvider),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoginPrompt(BuildContext context, ThemeProvider themeProvider) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: themeProvider.cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.account_circle,
-            size: 48,
-            color: themeProvider.secondaryTextColor,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Sign in to sync your music',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: themeProvider.textColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Save playlists, liked songs, and more',
-            style: TextStyle(
-              fontSize: 14,
-              color: themeProvider.secondaryTextColor,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeProvider.primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            child: const Text('Sign In'),
           ),
         ],
       ),
@@ -333,45 +267,8 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context, AuthProvider authProvider, ThemeProvider themeProvider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: themeProvider.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Log Out',
-          style: TextStyle(color: themeProvider.textColor),
-        ),
-        content: Text(
-          'Are you sure you want to log out?',
-          style: TextStyle(color: themeProvider.secondaryTextColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: themeProvider.secondaryTextColor),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              await authProvider.logout();
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Log Out', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showEditProfileDialog(BuildContext context, AuthProvider authProvider, ThemeProvider themeProvider) {
-    final user = authProvider.currentUser;
-    final nameController = TextEditingController(text: user?['display_name'] ?? '');
+    final nameController = TextEditingController(text: authProvider.displayName);
     
     showModalBottomSheet(
       context: context,
@@ -430,9 +327,7 @@ class SettingsScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
-                  await authProvider.updateProfile({
-                    'display_name': nameController.text.trim(),
-                  });
+                  await authProvider.updateDisplayName(nameController.text.trim());
                   if (context.mounted) {
                     Navigator.pop(context);
                   }

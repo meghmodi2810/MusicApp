@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class SettingsProvider extends ChangeNotifier {
   // Playback settings
@@ -173,5 +175,31 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('cacheSize', sizeInMB);
     notifyListeners();
+  }
+
+  Future<void> calculateCacheSize() async {
+    try {
+      final dir = await getTemporaryDirectory();
+      int totalSize = 0;
+      
+      if (await dir.exists()) {
+        await for (var entity in dir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            try {
+              totalSize += await entity.length();
+            } catch (e) {
+              // Skip files that can't be read
+            }
+          }
+        }
+      }
+      
+      final sizeInMB = (totalSize / (1024 * 1024)).round();
+      await updateCacheSize(sizeInMB);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error calculating cache size: $e');
+      }
+    }
   }
 }

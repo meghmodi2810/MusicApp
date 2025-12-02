@@ -7,7 +7,6 @@ import '../providers/playlist_provider.dart';
 import '../providers/music_player_provider.dart';
 import '../models/song_model.dart';
 import '../services/download_service.dart';
-import '../screens/login_screen.dart';
 import '../screens/player_screen.dart';
 import '../widgets/song_tile.dart';
 
@@ -49,10 +48,6 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     final textColor = themeProvider.textColor;
     final cardColor = themeProvider.cardColor;
 
-    if (!authProvider.isLoggedIn) {
-      return _buildLoginPrompt(themeProvider);
-    }
-
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -77,7 +72,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                           ),
                           child: Center(
                             child: Text(
-                              (authProvider.currentUser?['display_name'] as String?)?.substring(0, 1).toUpperCase() ?? 'M',
+                              authProvider.displayName[0].toUpperCase(),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -394,71 +389,6 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
             child: const Text('Clear All', style: TextStyle(color: Colors.red)),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLoginPrompt(ThemeProvider themeProvider) {
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [themeProvider.primaryColor, themeProvider.primaryColor.withOpacity(0.7)],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.library_music_rounded, size: 50, color: Colors.white),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Your Library',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: themeProvider.textColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Log in to create playlists, save songs, and access your music library.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: themeProvider.secondaryTextColor,
-                ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: themeProvider.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                ),
-                child: const Text(
-                  'Log In',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
