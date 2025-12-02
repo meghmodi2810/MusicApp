@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../models/song_model.dart';
+import '../models/album_model.dart';
+import '../models/artist_model.dart';
 
 /// Production Recommendation Engine - Uses only JioSaavn data
 /// NO clustering, NO external APIs, only user's listening history
@@ -169,6 +171,99 @@ class RecommendationService {
     
     debugPrint('🔄 Autoplay context for $artist: ${favorites.take(3).join(", ")}');
     return favorites;
+  }
+
+  // ==========================================
+  // SEARCH OPTIMIZATION
+  // ==========================================
+  
+  /// Sort search results by user's music taste
+  Future<List<SongModel>> sortSearchResultsByTaste(List<SongModel> songs) async {
+    if (songs.isEmpty) return songs;
+    
+    try {
+      final favoriteArtists = await getFavoriteArtists(limit: 50);
+      final favoriteArtistsLower = favoriteArtists.map((a) => a.toLowerCase()).toSet();
+      
+      // Score each song based on artist preference
+      final scoredSongs = songs.map((song) {
+        final artistLower = song.artist.toLowerCase();
+        int score = 0;
+        
+        // Exact match with favorite artist
+        if (favoriteArtistsLower.contains(artistLower)) {
+          score = favoriteArtists.indexWhere((a) => a.toLowerCase() == artistLower);
+          score = favoriteArtists.length - score; // Higher score for more played artists
+        }
+        
+        return MapEntry(song, score);
+      }).toList();
+      
+      // Sort by score (descending)
+      scoredSongs.sort((a, b) => b.value.compareTo(a.value));
+      
+      final sortedSongs = scoredSongs.map((e) => e.key).toList();
+      
+      debugPrint('🎯 Sorted ${songs.length} songs by taste (favorites first)');
+      return sortedSongs;
+    } catch (e) {
+      debugPrint('Error sorting by taste: $e');
+      return songs;
+    }
+  }
+
+  /// Sort album search results by user's music taste
+  Future<List<AlbumModel>> sortAlbumResultsByTaste(List<AlbumModel> albums) async {
+    if (albums.isEmpty) return albums;
+    
+    try {
+      final favoriteArtists = await getFavoriteArtists(limit: 50);
+      final favoriteArtistsLower = favoriteArtists.map((a) => a.toLowerCase()).toSet();
+      
+      final scoredAlbums = albums.map((album) {
+        final artistLower = album.artist.toLowerCase();
+        int score = 0;
+        
+        if (favoriteArtistsLower.contains(artistLower)) {
+          score = favoriteArtists.indexWhere((a) => a.toLowerCase() == artistLower);
+          score = favoriteArtists.length - score;
+        }
+        
+        return MapEntry(album, score);
+      }).toList();
+      
+      scoredAlbums.sort((a, b) => b.value.compareTo(a.value));
+      return scoredAlbums.map((e) => e.key).toList();
+    } catch (e) {
+      return albums;
+    }
+  }
+
+  /// Sort artist search results by user's music taste
+  Future<List<ArtistModel>> sortArtistResultsByTaste(List<ArtistModel> artists) async {
+    if (artists.isEmpty) return artists;
+    
+    try {
+      final favoriteArtists = await getFavoriteArtists(limit: 50);
+      final favoriteArtistsLower = favoriteArtists.map((a) => a.toLowerCase()).toSet();
+      
+      final scoredArtists = artists.map((artist) {
+        final artistLower = artist.name.toLowerCase();
+        int score = 0;
+        
+        if (favoriteArtistsLower.contains(artistLower)) {
+          score = favoriteArtists.indexWhere((a) => a.toLowerCase() == artistLower);
+          score = favoriteArtists.length - score;
+        }
+        
+        return MapEntry(artist, score);
+      }).toList();
+      
+      scoredArtists.sort((a, b) => b.value.compareTo(a.value));
+      return scoredArtists.map((e) => e.key).toList();
+    } catch (e) {
+      return artists;
+    }
   }
 
   // ==========================================

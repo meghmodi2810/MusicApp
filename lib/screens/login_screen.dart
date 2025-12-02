@@ -12,7 +12,10 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true; // PERFORMANCE: Keep state alive
+  
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -48,16 +51,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    super.build(context); // PERFORMANCE: Required for AutomaticKeepAliveClientMixin
+    
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false); // PERFORMANCE: listen: false
     final textColor = themeProvider.textColor;
     final secondaryText = themeProvider.secondaryTextColor;
     final accentColor = themeProvider.primaryColor;
     final cardColor = themeProvider.cardColor;
     
     return Scaffold(
+      backgroundColor: themeProvider.backgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(), // PERFORMANCE: Better scrolling
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
@@ -65,41 +72,43 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo/Icon - matching the warm retro style
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [accentColor, accentColor.withOpacity(0.7)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accentColor.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
+                  RepaintBoundary( // PERFORMANCE: Isolate expensive widget
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [accentColor, accentColor.withOpacity(0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ],
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Icon(
-                          Icons.album,
-                          size: 60,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                        Positioned(
-                          top: 15,
-                          child: Icon(
-                            Icons.headphones,
-                            size: 35,
-                            color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accentColor.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.album,
+                            size: 60,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                          Positioned(
+                            top: 15,
+                            child: Icon(
+                              Icons.headphones,
+                              size: 35,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -128,13 +137,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: BoxDecoration(
                       color: cardColor,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accentColor.withOpacity(0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
                     ),
                     padding: const EdgeInsets.all(24),
                     child: Column(
@@ -144,6 +146,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextFormField(
                           controller: _usernameController,
                           style: TextStyle(color: textColor),
+                          keyboardType: TextInputType.text,
+                          textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: 'Username or Email',
                             labelStyle: TextStyle(color: secondaryText),
@@ -173,6 +177,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           style: TextStyle(color: textColor),
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _handleLogin(),
                           decoration: InputDecoration(
                             labelText: 'Password',
                             labelStyle: TextStyle(color: secondaryText),
@@ -253,6 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   disabledBackgroundColor: accentColor.withOpacity(0.5),
+                                  elevation: 0, // PERFORMANCE: Remove shadow
                                 ),
                                 child: auth.isLoading
                                     ? const SizedBox(

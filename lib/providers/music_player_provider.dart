@@ -481,39 +481,48 @@ class MusicPlayerProvider extends ChangeNotifier {
     if (_currentSong == null) return;
 
     try {
-      final recommendationService = RecommendationService();
-      
-      // FAST: Get similar artists instantly (no API calls)
-      final similarArtists = await recommendationService.getContextForArtist(_currentSong!.artist);
-      
-      if (similarArtists.isEmpty) {
-        debugPrint('No similar artists found for autoplay');
-        return;
-      }
-
       debugPrint('🎵 Loading similar songs for: ${_currentSong!.artist}');
-      debugPrint('🎯 Similar artists: ${similarArtists.take(3).join(", ")}');
 
-      // Use MusicApiService to search for songs from similar artists
+      // Use MusicApiService to search for songs from SAME artist + similar style
       final musicApiService = MusicApiService();
       final recommendedSongs = <SongModel>[];
       
-      // Get songs from top 2 similar artists only (faster)
-      for (final artist in similarArtists.take(2)) {
-        try {
-          final songs = await musicApiService.searchSongs(artist)
-            .timeout(const Duration(seconds: 5), onTimeout: () => <SongModel>[]);
-          recommendedSongs.addAll(songs.take(5));
+      // Priority 1: Get more songs from SAME artist (similar to current song)
+      try {
+        final artistSongs = await musicApiService.searchSongs(_currentSong!.artist)
+          .timeout(const Duration(seconds: 5), onTimeout: () => <SongModel>[]);
+        
+        // Remove the current song from recommendations
+        artistSongs.removeWhere((song) => song.id == _currentSong!.id);
+        
+        recommendedSongs.addAll(artistSongs.take(10));
+        debugPrint('✅ Found ${artistSongs.length} songs from ${_currentSong!.artist}');
+      } catch (e) {
+        debugPrint('Error fetching songs for ${_currentSong!.artist}: $e');
+      }
+
+      // Priority 2: If from search context, add songs from user's favorite artists
+      if (recommendedSongs.length < 10) {
+        final recommendationService = RecommendationService();
+        final similarArtists = await recommendationService.getContextForArtist(_currentSong!.artist);
+        
+        for (final artist in similarArtists.take(2)) {
+          if (artist == _currentSong!.artist) continue; // Skip same artist
           
-          // Break early if we have enough songs
-          if (recommendedSongs.length >= 10) break;
-        } catch (e) {
-          debugPrint('Error fetching songs for $artist: $e');
+          try {
+            final songs = await musicApiService.searchSongs(artist)
+              .timeout(const Duration(seconds: 5), onTimeout: () => <SongModel>[]);
+            recommendedSongs.addAll(songs.take(5));
+            
+            if (recommendedSongs.length >= 15) break;
+          } catch (e) {
+            debugPrint('Error fetching songs for $artist: $e');
+          }
         }
       }
 
       if (recommendedSongs.isNotEmpty) {
-        // Update playlist with recommendations (no sorting for speed)
+        // Update playlist with recommendations
         _playlist = recommendedSongs.take(15).toList();
         _currentIndex = 0;
         

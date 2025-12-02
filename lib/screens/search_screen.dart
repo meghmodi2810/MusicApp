@@ -7,6 +7,7 @@ import '../models/song_model.dart';
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
 import '../services/music_api_service.dart';
+import '../services/recommendation_service.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/song_tile.dart';
 import 'album_screen.dart';
@@ -24,6 +25,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final MusicApiService _apiService = MusicApiService();
+  final RecommendationService _recommendationService = RecommendationService();
   final FocusNode _focusNode = FocusNode();
   
   List<SongModel> _songs = [];
@@ -119,12 +121,19 @@ class _SearchScreenState extends State<SearchScreen> {
       ]);
 
       if (mounted && _searchController.text.trim() == query.trim()) {
+        // Sort results by user's music taste
+        final sortedSongs = await _recommendationService.sortSearchResultsByTaste(results[0] as List<SongModel>);
+        final sortedAlbums = await _recommendationService.sortAlbumResultsByTaste(results[1] as List<AlbumModel>);
+        final sortedArtists = await _recommendationService.sortArtistResultsByTaste(results[2] as List<ArtistModel>);
+        
         setState(() {
-          _songs = results[0] as List<SongModel>;
-          _albums = results[1] as List<AlbumModel>;
-          _artists = results[2] as List<ArtistModel>;
+          _songs = sortedSongs;
+          _albums = sortedAlbums;
+          _artists = sortedArtists;
           _isLoading = false;
         });
+        
+        debugPrint('🎯 Search sorted by taste: ${_songs.take(3).map((s) => s.artist).join(", ")}');
         
         // Save to recent searches
         _saveRecentSearch(query);
@@ -461,8 +470,8 @@ class _SearchScreenState extends State<SearchScreen> {
         }
         return SongTile(
           song: _songs[index - 1],
-          playlist: _songs,
-          isFromSearch: true, // FIX: Mark as search result for smart autoplay
+          playlist: [], // Empty playlist - forces smart autoplay
+          isFromSearch: true, // Mark as search result
         );
       },
     );

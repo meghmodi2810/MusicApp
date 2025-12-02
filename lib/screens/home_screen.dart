@@ -13,6 +13,9 @@ import 'settings_screen.dart';
 import 'player_screen.dart';
 import 'artist_screen.dart';
 import 'album_screen.dart';
+import 'see_all_recommendations_screen.dart';
+import 'see_all_albums_screen.dart';
+import 'see_all_artists_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,6 +30,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   List<SongModel> _recommendedSongs = [];
   List<AlbumModel> _recommendedAlbums = [];
   List<ArtistModel> _recommendedArtists = [];
+  List<SongModel> _allRecommendedSongs = [];
+  List<AlbumModel> _allRecommendedAlbums = [];
+  List<ArtistModel> _allRecommendedArtists = [];
   bool _isLoading = true;
 
   @override
@@ -80,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Future<void> _loadUserTasteContent() async {
     try {
       // Get CACHED personalized queries (no switching!)
-      final queries = await _recommendationService.getPersonalizedQueries(count: 3);
+      final queries = await _recommendationService.getPersonalizedQueries(count: 5);
       
       if (queries.isEmpty) {
         debugPrint('⚠️ No favorite artists yet - showing trending');
@@ -102,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         return;
       }
 
-      // Load content for user's favorite artists
+      // Load content for user's favorite artists (20-30 items)
       final allSongs = <SongModel>[];
       final allAlbums = <AlbumModel>[];
       final allArtists = <ArtistModel>[];
@@ -129,15 +135,25 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         allArtists.addAll(results[2] as List<ArtistModel>);
       }
 
-      // Update UI with user's taste content (cached, consistent)
+      // Remove duplicates and get 20-30 items
+      final uniqueSongs = _removeDuplicateSongs(allSongs);
+      final uniqueAlbums = _removeDuplicateAlbums(allAlbums);
+      final uniqueArtists = _removeDuplicateArtists(allArtists);
+
+      // Store full lists for "See All" page
+      _allRecommendedSongs = uniqueSongs.take(50).toList();
+      _allRecommendedAlbums = uniqueAlbums.take(50).toList();
+      _allRecommendedArtists = uniqueArtists.take(50).toList();
+
+      // Show only top 7 on home screen (most popular/famous)
       if (mounted) {
         setState(() {
-          _recommendedSongs = _removeDuplicateSongs(allSongs).take(20).toList();
-          _recommendedAlbums = _removeDuplicateAlbums(allAlbums).take(15).toList();
-          _recommendedArtists = _removeDuplicateArtists(allArtists).take(15).toList();
+          _recommendedSongs = _allRecommendedSongs.take(7).toList();
+          _recommendedAlbums = _allRecommendedAlbums.take(7).toList();
+          _recommendedArtists = _allRecommendedArtists.take(7).toList();
           _isLoading = false;
         });
-        debugPrint('✅ Loaded ${_recommendedSongs.length} songs from favorite artists');
+        debugPrint('✅ Loaded ${_allRecommendedSongs.length} total songs (showing top 7)');
       }
     } catch (e) {
       debugPrint('Error loading user taste content: $e');
@@ -299,17 +315,76 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: textColor,
-            letterSpacing: -0.5,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+                letterSpacing: -0.5,
+              ),
+            ),
+            // "See All" button
+            if (_getSeeAllItemCount(title) > 7)
+              TextButton(
+                onPressed: () => _navigateToSeeAll(title),
+                child: Text(
+                  'See All',
+                  style: TextStyle(
+                    color: Provider.of<ThemeProvider>(context, listen: false).primaryColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  int _getSeeAllItemCount(String title) {
+    if (title.contains('Songs')) return _allRecommendedSongs.length;
+    if (title.contains('Albums')) return _allRecommendedAlbums.length;
+    if (title.contains('Artists')) return _allRecommendedArtists.length;
+    return 0;
+  }
+
+  void _navigateToSeeAll(String title) {
+    if (title.contains('Songs')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SeeAllRecommendationsScreen(
+            title: 'Recommended Songs',
+            songs: _allRecommendedSongs,
+          ),
+        ),
+      );
+    } else if (title.contains('Albums')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SeeAllAlbumsScreen(
+            title: 'Recommended Albums',
+            albums: _allRecommendedAlbums,
+          ),
+        ),
+      );
+    } else if (title.contains('Artists')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SeeAllArtistsScreen(
+            title: 'Recommended Artists',
+            artists: _allRecommendedArtists,
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildLoadingIndicator() {
