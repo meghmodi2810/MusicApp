@@ -459,7 +459,11 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           );
         }
-        return SongTile(song: _songs[index - 1], playlist: _songs);
+        return SongTile(
+          song: _songs[index - 1],
+          playlist: _songs,
+          isFromSearch: true, // FIX: Mark as search result for smart autoplay
+        );
       },
     );
   }

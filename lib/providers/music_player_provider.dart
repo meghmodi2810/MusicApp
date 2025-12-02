@@ -6,6 +6,7 @@ import 'package:audio_service/audio_service.dart';
 import '../models/song_model.dart';
 import '../services/recommendation_service.dart';
 import '../services/audio_handler_service.dart';
+import '../services/music_api_service.dart';
 
 class MusicPlayerProvider extends ChangeNotifier {
   AudioPlayer _audioPlayer = AudioPlayer();
@@ -77,15 +78,24 @@ class MusicPlayerProvider extends ChangeNotifier {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
       
-      // Initialize audio service for notifications
+      // Initialize audio service for notifications WITH CALLBACKS
       _audioHandler = await AudioService.init(
-        builder: () => AudioPlayerHandler(_audioPlayer),
+        builder: () => AudioPlayerHandler(
+          _audioPlayer,
+          onNext: () async => await playNext(),
+          onPrevious: () async => await playPrevious(),
+          onStop: () async => await stop(),
+        ),
         config: const AudioServiceConfig(
           androidNotificationChannelId: 'com.pancaketunes.app.channel.audio',
           androidNotificationChannelName: 'Pancake Tunes',
-          androidNotificationOngoing: true,
+          androidNotificationOngoing: false, // FIX: Changed to false to work with androidStopForegroundOnPause
           androidShowNotificationBadge: true,
-          androidStopForegroundOnPause: true, // Changed to true to fix assertion
+          androidStopForegroundOnPause: true,
+          artDownscaleWidth: 200,
+          artDownscaleHeight: 200,
+          fastForwardInterval: const Duration(seconds: 10),
+          rewindInterval: const Duration(seconds: 10),
         ),
       );
     } catch (e) {
@@ -367,29 +377,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   bool isInQueue(SongModel song) => _queue.any((s) => s.id == song.id);
 
   Future<void> playNext() async {
-    // Skip if crossfade is handling transition
-    if (_isCrossfading) return;
-    
-    if (_queue.isNotEmpty) {
-      final nextSong = _queue.removeAt(0);
-      notifyListeners();
-      await playSong(nextSong);
-      return;
-    }
-
-    if (_playlist.isEmpty) return;
-
-    if (_isShuffleOn) {
-      _currentIndex = (_currentIndex + 1) % _playlist.length;
-    } else if (_currentIndex < _playlist.length - 1) {
-      _currentIndex++;
-    } else if (_loopMode == LoopMode.all) {
-      _currentIndex = 0;
-    } else {
-      return;
-    }
-
-    await playSong(_playlist[_currentIndex]);
+    await _playNextWithSmartAutoplay();
   }
 
   Future<void> playPrevious() async {
@@ -450,7 +438,162 @@ class MusicPlayerProvider extends ChangeNotifier {
       seek(Duration.zero);
       _audioPlayer.play();
     } else {
-      playNext();
+      _playNextWithSmartAutoplay();
+    }
+  }
+
+  // Smart autoplay: plays from queue first, then recommendations
+  Future<void> _playNextWithSmartAutoplay() async {
+    // Skip if crossfade is handling transition
+    if (_isCrossfading) return;
+    
+    // Priority 1: Queue
+    if (_queue.isNotEmpty) {
+      final nextSong = _queue.removeAt(0);
+      notifyListeners();
+      await playSong(nextSong);
+      return;
+    }
+
+    // Priority 2: Playlist
+    if (_playlist.isNotEmpty) {
+      if (_isShuffleOn) {
+        _currentIndex = (_currentIndex + 1) % _playlist.length;
+      } else if (_currentIndex < _playlist.length - 1) {
+        _currentIndex++;
+      } else if (_loopMode == LoopMode.all) {
+        _currentIndex = 0;
+      } else {
+        // Playlist ended, load recommendations
+        await _loadSmartRecommendations();
+        return;
+      }
+      await playSong(_playlist[_currentIndex]);
+      return;
+    }
+
+    // Priority 3: Load smart recommendations based on current song
+    await _loadSmartRecommendations();
+  }
+
+  // Load recommendations based on current song's artist (FAST version)
+  Future<void> _loadSmartRecommendations() async {
+    if (_currentSong == null) return;
+
+    try {
+      final recommendationService = RecommendationService();
+      
+      // FAST: Get similar artists instantly (no API calls)
+      final similarArtists = await recommendationService.getContextForArtist(_currentSong!.artist);
+      
+      if (similarArtists.isEmpty) {
+        debugPrint('No similar artists found for autoplay');
+        return;
+      }
+
+      debugPrint('🎵 Loading similar songs for: ${_currentSong!.artist}');
+      debugPrint('🎯 Similar artists: ${similarArtists.take(3).join(", ")}');
+
+      // Use MusicApiService to search for songs from similar artists
+      final musicApiService = MusicApiService();
+      final recommendedSongs = <SongModel>[];
+      
+      // Get songs from top 2 similar artists only (faster)
+      for (final artist in similarArtists.take(2)) {
+        try {
+          final songs = await musicApiService.searchSongs(artist)
+            .timeout(const Duration(seconds: 5), onTimeout: () => <SongModel>[]);
+          recommendedSongs.addAll(songs.take(5));
+          
+          // Break early if we have enough songs
+          if (recommendedSongs.length >= 10) break;
+        } catch (e) {
+          debugPrint('Error fetching songs for $artist: $e');
+        }
+      }
+
+      if (recommendedSongs.isNotEmpty) {
+        // Update playlist with recommendations (no sorting for speed)
+        _playlist = recommendedSongs.take(15).toList();
+        _currentIndex = 0;
+        
+        // Play first recommended song
+        await playSong(_playlist[0]);
+        
+        debugPrint('✅ Autoplay: ${_playlist[0].title} by ${_playlist[0].artist}');
+      }
+    } catch (e) {
+      debugPrint('Error loading smart recommendations for autoplay: $e');
+    }
+  }
+
+  // Play song with smart context awareness
+  Future<void> playSongWithContext(SongModel song, {List<SongModel>? playlist, String? context}) async {
+    try {
+      // Cancel any ongoing crossfade
+      _isCrossfading = false;
+      _crossfadePlayer?.stop();
+      _crossfadePlayer?.dispose();
+      _crossfadePlayer = null;
+      
+      _isLoading = true;
+      notifyListeners();
+
+      // FIX: If from search, DON'T use search results as playlist
+      if (context == 'search') {
+        _playlist = [song]; // Only current song
+        _currentIndex = 0;
+        debugPrint('🔍 Search context: Will play similar songs after this');
+      } else if (playlist != null) {
+        _playlist = List.from(playlist);
+        _currentIndex = _playlist.indexWhere((s) => s.id == song.id);
+        if (_currentIndex == -1) _currentIndex = 0;
+      } else {
+        _playlist = [song];
+        _currentIndex = 0;
+      }
+
+      _currentSong = song;
+
+      final url = song.playableUrl;
+      if (url.isEmpty) {
+        debugPrint('No playable URL for song: ${song.title}');
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      if (song.isLocal) {
+        await _audioPlayer.setFilePath(url);
+      } else {
+        await _audioPlayer.setUrl(url);
+      }
+
+      if (_volumeNormalization) {
+        _applyVolumeNormalization();
+      }
+
+      // Update notification with song info
+      await _audioHandler?.updateSongMediaItem(
+        song.title,
+        song.artist,
+        song.albumArt,
+        _duration,
+      );
+
+      await _audioPlayer.play();
+      
+      // Track song play for recommendations
+      try {
+        final recommendationService = RecommendationService();
+        await recommendationService.trackSongPlay(song);
+      } catch (e) {
+        debugPrint('Error tracking song play: $e');
+      }
+    } catch (e) {
+      debugPrint('Error playing song: $e');
+      _isLoading = false;
+      notifyListeners();
     }
   }
 

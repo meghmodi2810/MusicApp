@@ -44,64 +44,122 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     setState(() => _isLoading = true);
     
     try {
-      // Check if user is new to determine content type
       final isNewUser = await _recommendationService.isNewUser();
       
-      // Load all data in parallel for faster loading
-      final results = await Future.wait([
-        isNewUser 
-            ? _apiService.getTrendingSongs()
-            : _loadPersonalizedSongs(),
-        isNewUser
-            ? _apiService.getTrendingAlbums()
-            : _loadPersonalizedAlbums(),
-        isNewUser
-            ? _apiService.getTrendingArtists()
-            : _loadPersonalizedArtists(),
-      ]);
-      
-      if (mounted) {
-        setState(() {
-          _recommendedSongs = results[0] as List<SongModel>;
-          _recommendedAlbums = results[1] as List<AlbumModel>;
-          _recommendedArtists = results[2] as List<ArtistModel>;
-          _isLoading = false;
-        });
+      if (isNewUser) {
+        // New user: show trending content
+        debugPrint('👤 New user detected - showing trending');
+        final results = await Future.wait([
+          _apiService.getTrendingSongs(),
+          _apiService.getTrendingAlbums(),
+          _apiService.getTrendingArtists(),
+        ]);
+        
+        if (mounted) {
+          setState(() {
+            _recommendedSongs = results[0] as List<SongModel>;
+            _recommendedAlbums = results[1] as List<AlbumModel>;
+            _recommendedArtists = results[2] as List<ArtistModel>;
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Returning user: show ONLY their favorite artists (NO TRENDING)
+        debugPrint('✅ Returning user - loading personalized content');
+        await _loadUserTasteContent();
       }
     } catch (e) {
+      debugPrint('Error loading data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
   }
 
-  Future<List<SongModel>> _loadPersonalizedSongs() async {
+  /// Load content based ONLY on user's music taste (NO trending)
+  Future<void> _loadUserTasteContent() async {
     try {
-      final query = await _recommendationService.getPersonalizedQuery();
-      return await _apiService.searchSongs(query);
+      // Get CACHED personalized queries (no switching!)
+      final queries = await _recommendationService.getPersonalizedQueries(count: 3);
+      
+      if (queries.isEmpty) {
+        debugPrint('⚠️ No favorite artists yet - showing trending');
+        // Fallback to trending if user has no history
+        final results = await Future.wait([
+          _apiService.getTrendingSongs(),
+          _apiService.getTrendingAlbums(),
+          _apiService.getTrendingArtists(),
+        ]);
+        
+        if (mounted) {
+          setState(() {
+            _recommendedSongs = results[0] as List<SongModel>;
+            _recommendedAlbums = results[1] as List<AlbumModel>;
+            _recommendedArtists = results[2] as List<ArtistModel>;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // Load content for user's favorite artists
+      final allSongs = <SongModel>[];
+      final allAlbums = <AlbumModel>[];
+      final allArtists = <ArtistModel>[];
+
+      // Fetch content for favorite artists
+      for (final query in queries) {
+        final results = await Future.wait([
+          _apiService.searchSongs(query).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <SongModel>[],
+          ),
+          _apiService.searchAlbums(query).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <AlbumModel>[],
+          ),
+          _apiService.searchArtists(query).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <ArtistModel>[],
+          ),
+        ]);
+
+        allSongs.addAll(results[0] as List<SongModel>);
+        allAlbums.addAll(results[1] as List<AlbumModel>);
+        allArtists.addAll(results[2] as List<ArtistModel>);
+      }
+
+      // Update UI with user's taste content (cached, consistent)
+      if (mounted) {
+        setState(() {
+          _recommendedSongs = _removeDuplicateSongs(allSongs).take(20).toList();
+          _recommendedAlbums = _removeDuplicateAlbums(allAlbums).take(15).toList();
+          _recommendedArtists = _removeDuplicateArtists(allArtists).take(15).toList();
+          _isLoading = false;
+        });
+        debugPrint('✅ Loaded ${_recommendedSongs.length} songs from favorite artists');
+      }
     } catch (e) {
-      return await _apiService.getTrendingSongs();
+      debugPrint('Error loading user taste content: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  Future<List<AlbumModel>> _loadPersonalizedAlbums() async {
-    try {
-      final query = await _recommendationService.getPersonalizedQuery();
-      final albums = await _apiService.searchAlbums(query);
-      return albums.take(10).toList();
-    } catch (e) {
-      return await _apiService.getTrendingAlbums();
-    }
+  List<SongModel> _removeDuplicateSongs(List<SongModel> songs) {
+    final seen = <String>{};
+    return songs.where((song) => seen.add(song.id)).toList();
   }
 
-  Future<List<ArtistModel>> _loadPersonalizedArtists() async {
-    try {
-      final query = await _recommendationService.getPersonalizedQuery();
-      final artists = await _apiService.searchArtists(query);
-      return artists.take(10).toList();
-    } catch (e) {
-      return await _apiService.getTrendingArtists();
-    }
+  List<AlbumModel> _removeDuplicateAlbums(List<AlbumModel> albums) {
+    final seen = <String>{};
+    return albums.where((album) => seen.add(album.id)).toList();
+  }
+
+  List<ArtistModel> _removeDuplicateArtists(List<ArtistModel> artists) {
+    final seen = <String>{};
+    return artists.where((artist) => seen.add(artist.id)).toList();
   }
 
   String _getGreeting() {

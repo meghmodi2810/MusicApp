@@ -586,7 +586,14 @@ class _OptimizedWavySliderState extends State<OptimizedWavySlider> with SingleTi
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
-    )..repeat();
+    );
+    // Start animation if already playing
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+      if (player.isPlaying) {
+        _animationController.repeat();
+      }
+    });
   }
 
   @override
@@ -597,38 +604,50 @@ class _OptimizedWavySliderState extends State<OptimizedWavySlider> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onHorizontalDragUpdate: (details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final localPosition = details.localPosition.dx;
-        final width = box.size.width;
-        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
-        widget.onChanged(newValue);
-      },
-      onTapDown: (details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final localPosition = details.localPosition.dx;
-        final width = box.size.width;
-        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
-        widget.onChanged(newValue);
-      },
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return CustomPaint(
-              size: const Size(double.infinity, 50),
-              painter: WavySliderPainter(
-                value: widget.value,
-                max: widget.max,
-                activeColor: widget.activeColor,
-                inactiveColor: widget.inactiveColor,
-                animationValue: _animationController.value,
-              ),
-            );
+    return ValueListenableBuilder<bool>(
+      valueListenable: Provider.of<MusicPlayerProvider>(context, listen: false).playingNotifier,
+      builder: (context, isPlaying, child) {
+        // Sync animation with player state
+        if (isPlaying && !_animationController.isAnimating) {
+          _animationController.repeat();
+        } else if (!isPlaying && _animationController.isAnimating) {
+          _animationController.stop();
+        }
+        
+        return GestureDetector(
+          onHorizontalDragUpdate: (details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            final localPosition = details.localPosition.dx;
+            final width = box.size.width;
+            final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+            widget.onChanged(newValue);
           },
-        ),
-      ),
+          onTapDown: (details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            final localPosition = details.localPosition.dx;
+            final width = box.size.width;
+            final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+            widget.onChanged(newValue);
+          },
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return CustomPaint(
+                  size: const Size(double.infinity, 50),
+                  painter: WavySliderPainter(
+                    value: widget.value,
+                    max: widget.max,
+                    activeColor: widget.activeColor,
+                    inactiveColor: widget.inactiveColor,
+                    animationValue: _animationController.value,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -845,7 +864,14 @@ class _WavySlider1State extends State<WavySlider1> with SingleTickerProviderStat
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
-    )..repeat();
+    );
+    // Start animation if already playing
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+      if (player.isPlaying) {
+        _animationController.repeat();
+      }
+    });
   }
 
   @override
@@ -856,38 +882,50 @@ class _WavySlider1State extends State<WavySlider1> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onHorizontalDragUpdate: (details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final localPosition = details.localPosition.dx;
-        final width = box.size.width;
-        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
-        widget.onChanged(newValue);
-      },
-      onTapDown: (details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final localPosition = details.localPosition.dx;
-        final width = box.size.width;
-        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
-        widget.onChanged(newValue);
-      },
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return CustomPaint(
-              size: const Size(double.infinity, 50),
-              painter: WavySlider1Painter(
-                value: widget.value,
-                max: widget.max,
-                activeColor: widget.activeColor,
-                inactiveColor: widget.inactiveColor,
-                animationValue: _animationController.value,
-              ),
-            );
+    return ValueListenableBuilder<bool>(
+      valueListenable: Provider.of<MusicPlayerProvider>(context, listen: false).playingNotifier,
+      builder: (context, isPlaying, child) {
+        // FIX: Sync animation with player state
+        if (isPlaying && !_animationController.isAnimating) {
+          _animationController.repeat();
+        } else if (!isPlaying && _animationController.isAnimating) {
+          _animationController.stop();
+        }
+        
+        return GestureDetector(
+          onHorizontalDragUpdate: (details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            final localPosition = details.localPosition.dx;
+            final width = box.size.width;
+            final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+            widget.onChanged(newValue);
           },
-        ),
-      ),
+          onTapDown: (details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            final localPosition = details.localPosition.dx;
+            final width = box.size.width;
+            final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+            widget.onChanged(newValue);
+          },
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return CustomPaint(
+                  size: const Size(double.infinity, 50),
+                  painter: WavySlider1Painter(
+                    value: widget.value,
+                    max: widget.max,
+                    activeColor: widget.activeColor,
+                    inactiveColor: widget.inactiveColor,
+                    animationValue: _animationController.value,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -997,7 +1035,14 @@ class _ModernSliderState extends State<ModernSlider> with SingleTickerProviderSt
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
-    )..repeat();
+    );
+    // Start animation if already playing
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+      if (player.isPlaying) {
+        _animationController.repeat();
+      }
+    });
   }
 
   @override
@@ -1008,38 +1053,50 @@ class _ModernSliderState extends State<ModernSlider> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onHorizontalDragUpdate: (details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final localPosition = details.localPosition.dx;
-        final width = box.size.width;
-        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
-        widget.onChanged(newValue);
-      },
-      onTapDown: (details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final localPosition = details.localPosition.dx;
-        final width = box.size.width;
-        final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
-        widget.onChanged(newValue);
-      },
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return CustomPaint(
-              size: const Size(double.infinity, 50),
-              painter: ModernSliderPainter(
-                value: widget.value,
-                max: widget.max,
-                activeColor: widget.activeColor,
-                inactiveColor: widget.inactiveColor,
-                animationValue: _animationController.value,
-              ),
-            );
+    return ValueListenableBuilder<bool>(
+      valueListenable: Provider.of<MusicPlayerProvider>(context, listen: false).playingNotifier,
+      builder: (context, isPlaying, child) {
+        // FIX: Sync animation with player state
+        if (isPlaying && !_animationController.isAnimating) {
+          _animationController.repeat();
+        } else if (!isPlaying && _animationController.isAnimating) {
+          _animationController.stop();
+        }
+        
+        return GestureDetector(
+          onHorizontalDragUpdate: (details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            final localPosition = details.localPosition.dx;
+            final width = box.size.width;
+            final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+            widget.onChanged(newValue);
           },
-        ),
-      ),
+          onTapDown: (details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            final localPosition = details.localPosition.dx;
+            final width = box.size.width;
+            final newValue = (localPosition / width * widget.max).clamp(0.0, widget.max);
+            widget.onChanged(newValue);
+          },
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return CustomPaint(
+                  size: const Size(double.infinity, 50),
+                  painter: ModernSliderPainter(
+                    value: widget.value,
+                    max: widget.max,
+                    activeColor: widget.activeColor,
+                    inactiveColor: widget.inactiveColor,
+                    animationValue: _animationController.value,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }

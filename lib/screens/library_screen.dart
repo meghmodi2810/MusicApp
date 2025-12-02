@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../providers/music_player_provider.dart';
 import '../models/song_model.dart';
+import '../services/download_service.dart';
 import '../screens/login_screen.dart';
 import '../screens/player_screen.dart';
 import '../widgets/song_tile.dart';
@@ -25,6 +26,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    
+    // Initialize download service
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final downloadService = DownloadService();
+      downloadService.initialize();
+    });
   }
 
   @override
@@ -35,7 +42,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context);
     final playlistProvider = Provider.of<PlaylistProvider>(context);
     final accentColor = themeProvider.primaryColor;
@@ -107,13 +114,13 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               ),
             ),
 
-            // Filter Chips
+            // Filter Chips - UPDATED with Downloaded
             SliverToBoxAdapter(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
-                  children: ['Playlists', 'Liked', 'Recent'].map((filter) {
+                  children: ['Playlists', 'Liked', 'Downloaded', 'Recent'].map((filter) {
                     final isSelected = _selectedFilter == filter;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -147,6 +154,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               _buildPlaylistsSection(themeProvider, playlistProvider)
             else if (_selectedFilter == 'Liked')
               _buildLikedSongsSection(themeProvider, playlistProvider)
+            else if (_selectedFilter == 'Downloaded')
+              _buildDownloadedSection(themeProvider)
             else
               _buildRecentlyPlayedSection(themeProvider, playlistProvider),
 
@@ -154,6 +163,237 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
             const SliverPadding(padding: EdgeInsets.only(bottom: 150)),
           ],
         ),
+      ),
+    );
+  }
+
+  // NEW: Downloaded content section
+  Widget _buildDownloadedSection(ThemeProvider themeProvider) {
+    return Consumer<DownloadService>(
+      builder: (context, downloadService, _) {
+        final downloadedSongs = downloadService.downloadedSongs;
+
+        if (downloadedSongs.isEmpty) {
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.download_outlined, size: 64, color: themeProvider.secondaryTextColor),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No downloaded content',
+                      style: TextStyle(
+                        color: themeProvider.textColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Download songs to listen offline',
+                      style: TextStyle(
+                        color: themeProvider.secondaryTextColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${downloadedSongs.length} downloaded songs',
+                        style: TextStyle(
+                          color: themeProvider.secondaryTextColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.storage, size: 16, color: themeProvider.secondaryTextColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            downloadService.formattedTotalSize,
+                            style: TextStyle(
+                              color: themeProvider.secondaryTextColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () => _showDeleteAllConfirmation(context, themeProvider, downloadService),
+                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                            label: const Text('Clear All', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              final downloadedSong = downloadedSongs[index - 1];
+              final song = downloadedSong.toSongModel();
+              
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: themeProvider.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: downloadedSong.albumArt != null
+                          ? CachedNetworkImage(
+                              imageUrl: downloadedSong.albumArt!,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: themeProvider.primaryColor.withOpacity(0.1),
+                                child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                              ),
+                              errorWidget: (_, __, ___) => Container(
+                                color: themeProvider.primaryColor.withOpacity(0.1),
+                                child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                              ),
+                            )
+                          : Container(
+                              color: themeProvider.primaryColor.withOpacity(0.1),
+                              child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                            ),
+                    ),
+                  ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          downloadedSong.title,
+                          style: TextStyle(
+                            color: themeProvider.textColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Icon(Icons.download_done, color: themeProvider.primaryColor, size: 18),
+                    ],
+                  ),
+                  subtitle: Text(
+                    downloadedSong.artist,
+                    style: TextStyle(
+                      color: themeProvider.secondaryTextColor,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    onPressed: () => _showDeleteConfirmation(context, themeProvider, downloadService, downloadedSong),
+                  ),
+                  onTap: () {
+                    final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+                    final downloadedSongsList = downloadedSongs.map((d) => d.toSongModel()).toList();
+                    player.playSong(song, playlist: downloadedSongsList);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PlayerScreen()),
+                    );
+                  },
+                ),
+              );
+            },
+            childCount: downloadedSongs.length + 1,
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, ThemeProvider themeProvider, DownloadService downloadService, DownloadedSong song) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeProvider.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete Download', style: TextStyle(color: themeProvider.textColor)),
+        content: Text(
+          'Delete "${song.title}" from downloads?',
+          style: TextStyle(color: themeProvider.secondaryTextColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: themeProvider.secondaryTextColor)),
+          ),
+          TextButton(
+            onPressed: () {
+              downloadService.deleteDownload(song.id);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Download deleted'),
+                  backgroundColor: themeProvider.primaryColor,
+                ),
+              );
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAllConfirmation(BuildContext context, ThemeProvider themeProvider, DownloadService downloadService) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeProvider.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Clear All Downloads', style: TextStyle(color: themeProvider.textColor)),
+        content: Text(
+          'Delete all downloaded content? This will free up ${downloadService.formattedTotalSize}.',
+          style: TextStyle(color: themeProvider.secondaryTextColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: themeProvider.secondaryTextColor)),
+          ),
+          TextButton(
+            onPressed: () {
+              downloadService.deleteAllDownloads();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('All downloads cleared'),
+                  backgroundColor: themeProvider.primaryColor,
+                ),
+              );
+            },
+            child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

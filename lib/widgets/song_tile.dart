@@ -16,6 +16,7 @@ class SongTile extends StatelessWidget {
   final VoidCallback? onTap;
   final bool showTrackNumber;
   final int? trackNumber;
+  final bool isFromSearch; // NEW: Flag to indicate if this is a search result
 
   const SongTile({
     super.key,
@@ -25,6 +26,7 @@ class SongTile extends StatelessWidget {
     this.onTap,
     this.showTrackNumber = false,
     this.trackNumber,
+    this.isFromSearch = false, // NEW: Default to false
   });
 
   @override
@@ -167,7 +169,16 @@ class SongTile extends StatelessWidget {
               final recommendationService = RecommendationService();
               recommendationService.trackSongPlay(song);
               
-              player.playSong(song, playlist: playlist);
+              // FIX: Use context-aware playback for search results
+              if (isFromSearch) {
+                // From search: Play this song only, autoplay will load similar songs
+                player.playSongWithContext(song, context: 'search');
+                debugPrint('🔍 Playing from search: ${song.title} - Next will be similar songs');
+              } else {
+                // From playlist/album: Use the provided playlist
+                player.playSong(song, playlist: playlist);
+                debugPrint('📀 Playing from playlist: ${song.title}');
+              }
               
               final authProvider = Provider.of<AuthProvider>(context, listen: false);
               if (authProvider.isLoggedIn) {

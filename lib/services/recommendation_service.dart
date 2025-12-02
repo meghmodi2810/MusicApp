@@ -1,106 +1,206 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 import '../models/song_model.dart';
 
-/// Smart recommendation engine that learns from user behavior
+/// Production Recommendation Engine - Uses only JioSaavn data
+/// NO clustering, NO external APIs, only user's listening history
 class RecommendationService {
   static const String _listeningHistoryKey = 'listening_history';
   static const String _artistPreferencesKey = 'artist_preferences';
-  static const String _genrePreferencesKey = 'genre_preferences';
+  static const String _cachedRecommendationsKey = 'cached_recommendations';
+  static const String _lastUpdateKey = 'recommendations_last_update';
+  
+  // Cache recommendations for 1 hour
+  static const Duration _cacheExpiry = Duration(hours: 1);
 
-  // Track listening history
+  // ==========================================
+  // LISTENING HISTORY TRACKING
+  // ==========================================
+  
   Future<void> trackSongPlay(SongModel song) async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // Get existing history
-    final historyJson = prefs.getString(_listeningHistoryKey) ?? '[]';
-    List<dynamic> history = json.decode(historyJson);
-    
-    // Add new entry with timestamp
-    history.insert(0, {
-      'songId': song.id,
-      'title': song.title,
-      'artist': song.artist,
-      'artistId': song.artistId,
-      'album': song.album,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    });
-    
-    // Keep only last 100 plays
-    if (history.length > 100) {
-      history = history.sublist(0, 100);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final historyJson = prefs.getString(_listeningHistoryKey) ?? '[]';
+      List<dynamic> history = json.decode(historyJson);
+      
+      history.insert(0, {
+        'songId': song.id,
+        'title': song.title,
+        'artist': song.artist,
+        'artistId': song.artistId,
+        'album': song.album,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      
+      if (history.length > 100) {
+        history = history.sublist(0, 100);
+      }
+      
+      await prefs.setString(_listeningHistoryKey, json.encode(history));
+      await _updateArtistPreferences(song.artist, song.artistId);
+      
+      // Clear cached recommendations when user plays new song
+      await clearCachedRecommendations();
+      
+      debugPrint('📊 Tracked: ${song.title} by ${song.artist}');
+    } catch (e) {
+      debugPrint('Error tracking song: $e');
     }
-    
-    await prefs.setString(_listeningHistoryKey, json.encode(history));
-    
-    // Update artist preferences
-    await _updateArtistPreferences(song.artist, song.artistId);
   }
 
   Future<void> _updateArtistPreferences(String artist, String? artistId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final prefsJson = prefs.getString(_artistPreferencesKey) ?? '{}';
-    Map<String, dynamic> artistPrefs = json.decode(prefsJson);
-    
-    final key = artistId ?? artist;
-    artistPrefs[key] = {
-      'name': artist,
-      'artistId': artistId,
-      'playCount': (artistPrefs[key]?['playCount'] ?? 0) + 1,
-      'lastPlayed': DateTime.now().millisecondsSinceEpoch,
-    };
-    
-    await prefs.setString(_artistPreferencesKey, json.encode(artistPrefs));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefsJson = prefs.getString(_artistPreferencesKey) ?? '{}';
+      Map<String, dynamic> artistPrefs = json.decode(prefsJson);
+      
+      final key = artistId ?? artist.toLowerCase();
+      artistPrefs[key] = {
+        'name': artist,
+        'artistId': artistId,
+        'playCount': (artistPrefs[key]?['playCount'] ?? 0) + 1,
+        'lastPlayed': DateTime.now().millisecondsSinceEpoch,
+      };
+      
+      await prefs.setString(_artistPreferencesKey, json.encode(artistPrefs));
+    } catch (e) {
+      debugPrint('Error updating preferences: $e');
+    }
   }
 
-  // Get favorite artists based on listening history
+  // ==========================================
+  // GET USER'S FAVORITE ARTISTS
+  // ==========================================
+  
   Future<List<String>> getFavoriteArtists({int limit = 10}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final prefsJson = prefs.getString(_artistPreferencesKey) ?? '{}';
-    Map<String, dynamic> artistPrefs = json.decode(prefsJson);
-    
-    // Sort by play count
-    final sorted = artistPrefs.entries.toList()
-      ..sort((a, b) => (b.value['playCount'] as int).compareTo(a.value['playCount'] as int));
-    
-    return sorted.take(limit).map((e) => e.value['name'] as String).toList();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefsJson = prefs.getString(_artistPreferencesKey) ?? '{}';
+      Map<String, dynamic> artistPrefs = json.decode(prefsJson);
+      
+      if (artistPrefs.isEmpty) return [];
+      
+      final sorted = artistPrefs.entries.toList()
+        ..sort((a, b) => (b.value['playCount'] as int).compareTo(a.value['playCount'] as int));
+      
+      final favorites = sorted.take(limit).map((e) => e.value['name'] as String).toList();
+      
+      debugPrint('🎵 Favorite artists: ${favorites.take(3).join(", ")}');
+      return favorites;
+    } catch (e) {
+      return [];
+    }
   }
 
-  // Get recently played songs
-  Future<List<Map<String, dynamic>>> getRecentlyPlayed({int limit = 20}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final historyJson = prefs.getString(_listeningHistoryKey) ?? '[]';
-    List<dynamic> history = json.decode(historyJson);
-    
-    return history.take(limit).map((e) => Map<String, dynamic>.from(e)).toList();
+  // ==========================================
+  // CACHED RECOMMENDATIONS
+  // ==========================================
+  
+  /// Get personalized artist queries (CACHED for consistency)
+  Future<List<String>> getPersonalizedQueries({int count = 5}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Check if cache is still valid
+      final lastUpdate = prefs.getInt(_lastUpdateKey) ?? 0;
+      final cacheAge = DateTime.now().millisecondsSinceEpoch - lastUpdate;
+      
+      if (cacheAge < _cacheExpiry.inMilliseconds) {
+        // Return cached recommendations (no switching!)
+        final cachedJson = prefs.getString(_cachedRecommendationsKey);
+        if (cachedJson != null) {
+          final cached = List<String>.from(json.decode(cachedJson));
+          if (cached.isNotEmpty) {
+            debugPrint('📦 Using cached recommendations: ${cached.take(3).join(", ")}');
+            return cached.take(count).toList();
+          }
+        }
+      }
+      
+      // Generate new recommendations from user's taste
+      final favoriteArtists = await getFavoriteArtists(limit: count * 2);
+      
+      if (favoriteArtists.isEmpty) {
+        return []; // Return empty - home screen will show trending
+      }
+      
+      // Cache the recommendations
+      await prefs.setString(_cachedRecommendationsKey, json.encode(favoriteArtists));
+      await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
+      
+      debugPrint('💾 Cached new recommendations: ${favoriteArtists.take(3).join(", ")}');
+      return favoriteArtists.take(count).toList();
+    } catch (e) {
+      debugPrint('Error getting personalized queries: $e');
+      return [];
+    }
   }
 
-  // Check if user is new (less than 5 songs played)
-  Future<bool> isNewUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final historyJson = prefs.getString(_listeningHistoryKey) ?? '[]';
-    List<dynamic> history = json.decode(historyJson);
-    return history.length < 5;
+  /// Clear cached recommendations (when user plays new song)
+  Future<void> clearCachedRecommendations() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_cachedRecommendationsKey);
+      await prefs.remove(_lastUpdateKey);
+      debugPrint('🗑️ Cleared recommendation cache');
+    } catch (e) {
+      debugPrint('Error clearing cache: $e');
+    }
   }
 
-  // Get recommendation query based on user preferences
-  Future<String> getPersonalizedQuery() async {
-    final favoriteArtists = await getFavoriteArtists(limit: 3);
+  // ==========================================
+  // AUTOPLAY CONTEXT (For Search Fix)
+  // ==========================================
+  
+  /// Get similar artists for autoplay after search
+  Future<List<String>> getContextForArtist(String artist) async {
+    // Return user's favorite artists for autoplay
+    final favorites = await getFavoriteArtists(limit: 10);
     
-    if (favoriteArtists.isEmpty) {
-      // New user - return trending
-      return 'top hits 2024';
+    // Remove the current artist from recommendations
+    favorites.remove(artist);
+    
+    if (favorites.isEmpty) {
+      // If no favorites, return the current artist only
+      return [artist];
     }
     
-    // Return query based on favorite artist
-    return '${favoriteArtists.first} similar artists';
+    debugPrint('🔄 Autoplay context for $artist: ${favorites.take(3).join(", ")}');
+    return favorites;
   }
 
-  // Clear all data (for testing)
+  // ==========================================
+  // USER STATUS
+  // ==========================================
+  
+  Future<bool> isNewUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyJson = prefs.getString(_listeningHistoryKey) ?? '[]';
+      List<dynamic> history = json.decode(historyJson);
+      
+      final isNew = history.length < 5;
+      debugPrint(isNew ? '👤 New user (${history.length} songs played)' : '✅ Returning user (${history.length} songs played)');
+      
+      return isNew;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  Future<List<SongModel>> sortByPopularity(List<SongModel> songs) async {
+    // Just return as-is (no sorting needed)
+    return songs;
+  }
+
   Future<void> clearAllData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_listeningHistoryKey);
     await prefs.remove(_artistPreferencesKey);
-    await prefs.remove(_genrePreferencesKey);
+    await prefs.remove(_cachedRecommendationsKey);
+    await prefs.remove(_lastUpdateKey);
+    debugPrint('🗑️ Cleared all recommendation data');
   }
 }

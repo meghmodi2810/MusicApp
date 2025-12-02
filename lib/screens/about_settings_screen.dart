@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
-import '../providers/settings_provider.dart';
-import '../services/download_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutSettingsScreen extends StatelessWidget {
@@ -11,8 +9,6 @@ class AboutSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final settingsProvider = Provider.of<SettingsProvider>(context);
-    final downloadService = Provider.of<DownloadService>(context);
     final textColor = themeProvider.textColor;
     final secondaryText = themeProvider.secondaryTextColor;
 
@@ -76,34 +72,6 @@ class AboutSettingsScreen extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Storage Section
-          _buildSectionHeader('Storage', secondaryText),
-          _buildSettingsTile(
-            context,
-            icon: Icons.storage,
-            title: 'Cache Size',
-            subtitle: '${settingsProvider.cacheSize} MB used',
-            themeProvider: themeProvider,
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.folder,
-            title: 'Downloaded Songs',
-            subtitle: '${downloadService.downloadedSongs.length} songs (${downloadService.formattedTotalSize})',
-            themeProvider: themeProvider,
-            onTap: () => _showDownloadsDialog(context, themeProvider, downloadService),
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.delete_outline,
-            title: 'Clear Cache',
-            subtitle: 'Free up space on your device',
-            themeProvider: themeProvider,
-            onTap: () => _showClearCacheDialog(context, themeProvider, settingsProvider),
           ),
           
           const SizedBox(height: 24),
@@ -230,168 +198,5 @@ class AboutSettingsScreen extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
-  }
-
-  void _showDownloadsDialog(BuildContext context, ThemeProvider themeProvider, DownloadService downloadService) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: themeProvider.cardColor,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: themeProvider.secondaryTextColor.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Downloaded Songs',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: themeProvider.textColor,
-                    ),
-                  ),
-                  if (downloadService.downloadedSongs.isNotEmpty)
-                    TextButton(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            backgroundColor: themeProvider.cardColor,
-                            title: Text('Delete All', style: TextStyle(color: themeProvider.textColor)),
-                            content: Text(
-                              'Remove all downloaded songs?',
-                              style: TextStyle(color: themeProvider.secondaryTextColor),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: Text('Cancel', style: TextStyle(color: themeProvider.secondaryTextColor)),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  downloadService.deleteAllDownloads();
-                                  Navigator.pop(ctx);
-                                  Navigator.pop(context);
-                                },
-                                child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                      child: const Text('Delete All', style: TextStyle(color: Colors.red)),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: downloadService.downloadedSongs.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.download_done, size: 64, color: themeProvider.secondaryTextColor),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No downloaded songs',
-                            style: TextStyle(fontSize: 16, color: themeProvider.secondaryTextColor),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: scrollController,
-                      itemCount: downloadService.downloadedSongs.length,
-                      itemBuilder: (context, index) {
-                        final song = downloadService.downloadedSongs[index];
-                        return ListTile(
-                          leading: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: themeProvider.primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(Icons.music_note, color: themeProvider.primaryColor),
-                          ),
-                          title: Text(
-                            song.title,
-                            style: TextStyle(color: themeProvider.textColor),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            song.artist,
-                            style: TextStyle(color: themeProvider.secondaryTextColor),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            onPressed: () => downloadService.deleteDownload(song.id),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showClearCacheDialog(BuildContext context, ThemeProvider themeProvider, SettingsProvider settingsProvider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: themeProvider.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Clear Cache', style: TextStyle(color: themeProvider.textColor)),
-        content: Text(
-          'This will remove all cached data. Are you sure?',
-          style: TextStyle(color: themeProvider.secondaryTextColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: themeProvider.secondaryTextColor)),
-          ),
-          TextButton(
-            onPressed: () {
-              settingsProvider.clearCache();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Cache cleared'),
-                  backgroundColor: themeProvider.primaryColor,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              );
-            },
-            child: const Text('Clear', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
   }
 }
