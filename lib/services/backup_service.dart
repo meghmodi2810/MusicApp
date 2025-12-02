@@ -3,16 +3,31 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class BackupService {
   static final BackupService instance = BackupService._init();
   BackupService._init();
 
-  /// Export complete app data as a SQLite backup file
-  Future<bool> exportData() async {
+  /// Export complete app data as a SQLite backup file to Downloads folder
+  Future<Map<String, dynamic>> exportData() async {
     try {
+      // Request storage permission
+      if (Platform.isAndroid) {
+        final status = await Permission.storage.request();
+        if (!status.isGranted) {
+          // Try manageExternalStorage for Android 11+
+          final manageStatus = await Permission.manageExternalStorage.request();
+          if (!manageStatus.isGranted) {
+            return {
+              'success': false,
+              'message': 'Storage permission denied. Please grant permission in settings.',
+            };
+          }
+        }
+      }
+
       // Get the current database path
       final dbPath = await getDatabasesPath();
       final sourceDbPath = join(dbPath, 'music_app.db');
@@ -20,32 +35,45 @@ class BackupService {
       // Check if database exists
       if (!await File(sourceDbPath).exists()) {
         if (kDebugMode) print('Database file not found');
-        return false;
+        return {'success': false, 'message': 'No data to export'};
       }
 
       // Create backup file with timestamp
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final backupFileName = 'pancake_tunes_backup_$timestamp.db';
       
-      // Get temporary directory to save backup
-      final tempDir = await getTemporaryDirectory();
-      final backupPath = join(tempDir.path, backupFileName);
+      // Get Downloads directory
+      Directory? downloadsDir;
+      if (Platform.isAndroid) {
+        downloadsDir = Directory('/storage/emulated/0/Download');
+        if (!await downloadsDir.exists()) {
+          downloadsDir = await getExternalStorageDirectory();
+        }
+      } else if (Platform.isIOS) {
+        downloadsDir = await getApplicationDocumentsDirectory();
+      } else {
+        downloadsDir = await getDownloadsDirectory();
+      }
       
-      // Copy database to backup location
+      if (downloadsDir == null) {
+        return {'success': false, 'message': 'Could not access Downloads folder'};
+      }
+
+      final backupPath = join(downloadsDir.path, backupFileName);
+      
+      // Copy database to Downloads folder
       await File(sourceDbPath).copy(backupPath);
       
-      // Share the backup file
-      await Share.shareXFiles(
-        [XFile(backupPath)],
-        subject: 'Pancake Tunes Backup',
-        text: 'Your Pancake Tunes backup file. Keep it safe!',
-      );
-      
       if (kDebugMode) print('Backup exported successfully: $backupPath');
-      return true;
+      return {
+        'success': true,
+        'message': 'Backup saved to Downloads',
+        'path': backupPath,
+        'filename': backupFileName,
+      };
     } catch (e) {
       if (kDebugMode) print('Error exporting data: $e');
-      return false;
+      return {'success': false, 'message': 'Export failed: ${e.toString()}'};
     }
   }
 

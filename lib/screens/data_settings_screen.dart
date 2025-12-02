@@ -37,24 +37,94 @@ class _DataSettingsScreenState extends State<DataSettingsScreen> {
   Future<void> _exportData() async {
     setState(() => _isLoading = true);
     
-    final success = await _backupService.exportData();
+    final result = await _backupService.exportData();
     
     setState(() => _isLoading = false);
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success 
-            ? 'Backup exported successfully!' 
-            : 'Failed to export backup'),
-          backgroundColor: success ? Colors.green : Colors.red,
+          content: Text(result['message'] ?? 'Export completed'),
+          backgroundColor: result['success'] ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 3),
         ),
       );
+      
+      // Show file location if successful
+      if (result['success'] && result['filename'] != null) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: Provider.of<ThemeProvider>(context, listen: false).cardColor,
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green),
+                const SizedBox(width: 12),
+                Text(
+                  'Export Successful',
+                  style: TextStyle(
+                    color: Provider.of<ThemeProvider>(context, listen: false).textColor,
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your backup has been saved to:',
+                  style: TextStyle(
+                    color: Provider.of<ThemeProvider>(context, listen: false).secondaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Provider.of<ThemeProvider>(context, listen: false).backgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.folder, 
+                        color: Provider.of<ThemeProvider>(context, listen: false).primaryColor,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Downloads/${result['filename']}',
+                          style: TextStyle(
+                            color: Provider.of<ThemeProvider>(context, listen: false).textColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Provider.of<ThemeProvider>(context, listen: false).primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     }
   }
 
   Future<void> _importData() async {
-    // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -66,7 +136,7 @@ class _DataSettingsScreenState extends State<DataSettingsScreen> {
           ),
         ),
         content: Text(
-          'This will replace all your current data with the backup file. Continue?',
+          'This will overwrite your current data. Do you want to proceed?',
           style: TextStyle(
             color: Provider.of<ThemeProvider>(context, listen: false).secondaryTextColor,
           ),

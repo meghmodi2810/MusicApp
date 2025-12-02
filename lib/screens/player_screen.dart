@@ -20,6 +20,14 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
+  final ScrollController _scrollController = ScrollController();
+  
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
@@ -65,202 +73,199 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Widget _buildPlayerContent(BuildContext context, MusicPlayerProvider player, SongModel song, ThemeProvider themeProvider) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
 
-    // FIXED: Proper gesture handling - wrap the Column, not SingleChildScrollView
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      child: GestureDetector(
-        onVerticalDragEnd: (details) {
-          // Swipe down to close
-          if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification notification) {
+        // If at top and trying to scroll down, dismiss the screen
+        if (notification is OverscrollNotification) {
+          if (_scrollController.position.pixels <= 0 && notification.overscroll < 0) {
             Navigator.pop(context);
+            return true;
           }
-          // Swipe up for lyrics
-          else if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
-            _showLyricsSheet(context, song, themeProvider);
-          }
-        },
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: screenHeight - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Top Bar
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32),
-                      color: themeProvider.textColor,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.more_horiz, size: 28),
-                      color: themeProvider.textColor,
-                      onPressed: () => _showSongOptions(context, song, themeProvider),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 8),
+        }
+        return false;
+      },
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Top Bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32),
+                    color: themeProvider.textColor,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.more_horiz, size: 28),
+                    color: themeProvider.textColor,
+                    onPressed: () => _showSongOptions(context, song, themeProvider),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 8),
 
-                // Album Art Card - cached and optimized
-                Hero(
-                  tag: 'album_art_${song.id}',
-                  child: Container(
-                    width: screenWidth * 0.75,
-                    height: screenWidth * 0.75,
-                    decoration: BoxDecoration(
-                      color: themeProvider.cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: themeProvider.primaryColor.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: song.albumArt != null
-                          ? CachedNetworkImage(
-                              imageUrl: song.highQualityArt,
-                              fit: BoxFit.cover,
-                              memCacheHeight: (screenWidth * 0.75).toInt(),
-                              placeholder: (context, url) => Container(
-                                color: themeProvider.cardColor,
-                                child: Center(child: CircularProgressIndicator(color: themeProvider.primaryColor)),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: themeProvider.cardColor,
-                                child: Icon(Icons.music_note, size: 60, color: themeProvider.secondaryTextColor),
-                              ),
-                            )
-                          : Container(
+              // Album Art Card - cached and optimized
+              Hero(
+                tag: 'album_art_${song.id}',
+                child: Container(
+                  width: screenWidth * 0.75,
+                  height: screenWidth * 0.75,
+                  decoration: BoxDecoration(
+                    color: themeProvider.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeProvider.primaryColor.withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: song.albumArt != null
+                        ? CachedNetworkImage(
+                            imageUrl: song.highQualityArt,
+                            fit: BoxFit.cover,
+                            memCacheHeight: (screenWidth * 0.75).toInt(),
+                            placeholder: (context, url) => Container(
+                              color: themeProvider.cardColor,
+                              child: Center(child: CircularProgressIndicator(color: themeProvider.primaryColor)),
+                            ),
+                            errorWidget: (context, url, error) => Container(
                               color: themeProvider.cardColor,
                               child: Icon(Icons.music_note, size: 60, color: themeProvider.secondaryTextColor),
                             ),
-                    ),
+                          )
+                        : Container(
+                            color: themeProvider.cardColor,
+                            child: Icon(Icons.music_note, size: 60, color: themeProvider.secondaryTextColor),
+                          ),
                   ),
                 ),
+              ),
 
-                const SizedBox(height: 28),
+              const SizedBox(height: 28),
 
-                // FIXED: Song Title with Like (left) and Queue (right) buttons - SWAPPED & INCREASED SIZE
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Consumer<AuthProvider>(
-                    builder: (context, authProvider, _) {
-                      return Consumer<PlaylistProvider>(
-                        builder: (context, playlistProvider, _) {
-                          final isLiked = authProvider.isLoggedIn ? playlistProvider.isSongLikedSync(song.id) : false;
-                          
-                          return Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // Like button on LEFT - INCREASED SIZE
-                                  IconButton(
-                                    icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, size: 32),
-                                    color: isLiked ? Colors.red : themeProvider.textColor,
-                                    onPressed: () {
-                                      if (!authProvider.isLoggedIn) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: const Text('Please log in to like songs'),
-                                            backgroundColor: themeProvider.primaryColor,
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                      playlistProvider.toggleLikeSong(song);
-                                    },
-                                  ),
-                                  
-                                  // Song title in center
-                                  Expanded(
-                                    child: Text(
-                                      song.title,
-                                      style: TextStyle(
-                                        color: themeProvider.textColor,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.5,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  
-                                  // Queue button on RIGHT - INCREASED SIZE
-                                  IconButton(
-                                    icon: const Icon(Icons.queue_music, size: 32),
-                                    color: themeProvider.textColor,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        PageRouteBuilder(
-                                          pageBuilder: (context, animation, secondaryAnimation) => const QueueScreen(),
-                                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                            return SlideTransition(
-                                              position: Tween<Offset>(
-                                                begin: const Offset(0, 1),
-                                                end: Offset.zero,
-                                              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-                                              child: child,
-                                            );
-                                          },
-                                          transitionDuration: const Duration(milliseconds: 300),
+              // Song Title with Like (left) and Queue (right) buttons
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Consumer<AuthProvider>(
+                  builder: (context, authProvider, _) {
+                    return Consumer<PlaylistProvider>(
+                      builder: (context, playlistProvider, _) {
+                        final isLiked = authProvider.isLoggedIn ? playlistProvider.isSongLikedSync(song.id) : false;
+                        
+                        return Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Like button on LEFT
+                                IconButton(
+                                  icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, size: 32),
+                                  color: isLiked ? Colors.red : themeProvider.textColor,
+                                  onPressed: () {
+                                    if (!authProvider.isLoggedIn) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: const Text('Please log in to like songs'),
+                                          backgroundColor: themeProvider.primaryColor,
                                         ),
                                       );
-                                    },
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                song.artist,
-                                style: TextStyle(
-                                  color: themeProvider.secondaryTextColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                                      return;
+                                    }
+                                    playlistProvider.toggleLikeSong(song);
+                                  },
                                 ),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                
+                                // Song title in center
+                                Expanded(
+                                  child: Text(
+                                    song.title,
+                                    style: TextStyle(
+                                      color: themeProvider.textColor,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.5,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                
+                                // Queue button on RIGHT
+                                IconButton(
+                                  icon: const Icon(Icons.queue_music, size: 32),
+                                  color: themeProvider.textColor,
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      PageRouteBuilder(
+                                        pageBuilder: (context, animation, secondaryAnimation) => const QueueScreen(),
+                                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                          return SlideTransition(
+                                            position: Tween<Offset>(
+                                              begin: const Offset(0, 1),
+                                              end: Offset.zero,
+                                            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+                                            child: child,
+                                          );
+                                        },
+                                        transitionDuration: const Duration(milliseconds: 300),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              song.artist,
+                              style: TextStyle(
+                                color: themeProvider.secondaryTextColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
                               ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 ),
+              ),
 
-                const SizedBox(height: 28),
+              const SizedBox(height: 28),
 
-                // PERFORMANCE: Use ValueListenableBuilder for smooth progress updates
-                _buildOptimizedProgressBar(player, themeProvider),
+              // Progress bar
+              _buildOptimizedProgressBar(player, themeProvider),
 
-                const SizedBox(height: 32),
+              const SizedBox(height: 32),
 
-                // Main Controls - use Selector for minimal rebuilds
-                _buildControlsSection(player, themeProvider),
+              // Main Controls
+              _buildControlsSection(player, themeProvider),
 
-                const SizedBox(height: 28),
+              const SizedBox(height: 28),
 
-                // FIXED: Swipe up hint for lyrics (removed share button)
-                Container(
+              // Swipe up hint for lyrics
+              GestureDetector(
+                onTap: () => _showLyricsSheet(context, song, themeProvider),
+                child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   decoration: BoxDecoration(
                     color: themeProvider.cardColor.withOpacity(0.5),
@@ -272,10 +277,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.keyboard_arrow_up, color: themeProvider.secondaryTextColor, size: 20),
+                      Icon(Icons.lyrics_outlined, color: themeProvider.secondaryTextColor, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'Swipe up for lyrics',
+                        'Tap for lyrics',
                         style: TextStyle(
                           color: themeProvider.secondaryTextColor,
                           fontSize: 14,
@@ -284,10 +289,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     ],
                   ),
                 ),
+              ),
 
-                const SizedBox(height: 16),
-              ],
-            ),
+              const SizedBox(height: 16),
+              
+              // Extra spacing for scrollable content
+              const SizedBox(height: 100),
+            ],
           ),
         ),
       ),

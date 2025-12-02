@@ -54,12 +54,12 @@ class _FirstTimeSetupScreenState extends State<FirstTimeSetupScreen> {
     return Scaffold(
       backgroundColor: themeProvider.backgroundColor,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Spacer(),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.1),
               
               // Logo
               Container(
@@ -221,7 +221,7 @@ class _FirstTimeSetupScreenState extends State<FirstTimeSetupScreen> {
                 ),
               ),
               
-              const Spacer(),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.1),
               
               // Info Text
               Text(
@@ -233,6 +233,8 @@ class _FirstTimeSetupScreenState extends State<FirstTimeSetupScreen> {
                   height: 1.5,
                 ),
               ),
+              
+              const SizedBox(height: 24),
             ],
           ),
         ),

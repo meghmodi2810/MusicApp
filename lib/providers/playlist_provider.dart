@@ -159,17 +159,23 @@ class PlaylistProvider extends ChangeNotifier {
   Future<void> toggleLikeSong(SongModel song) async {
     if (_userId == null) return;
 
-    final isLiked = await _db.isSongLiked(_userId!, song.id);
-    
-    if (isLiked) {
-      await _db.unlikeSong(_userId!, song.id);
-      _likedSongs.removeWhere((s) => s.id == song.id);
-    } else {
-      await _db.likeSong(_userId!, song);
-      _likedSongs.insert(0, song);
+    try {
+      final isLiked = await _db.isSongLiked(_userId!, song.id);
+      
+      if (isLiked) {
+        await _db.unlikeSong(_userId!, song.id);
+        _likedSongs.removeWhere((s) => s.id == song.id);
+      } else {
+        await _db.likeSong(_userId!, song);
+        _likedSongs.insert(0, song);
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      print('Error toggling like song: $e');
+      // Reload liked songs to ensure consistency
+      await loadLikedSongs();
     }
-    
-    notifyListeners();
   }
 
   Future<bool> isSongLiked(String songId) async {

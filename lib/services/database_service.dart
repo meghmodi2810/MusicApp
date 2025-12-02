@@ -11,7 +11,10 @@ class DatabaseService {
   DatabaseService._init();
 
   Future<Database> get database async {
-    if (_database != null) return _database!;
+    // Check if database is closed and reinitialize if needed
+    if (_database != null && _database!.isOpen) {
+      return _database!;
+    }
     _database = await _initDB('music_app.db');
     return _database!;
   }
@@ -603,52 +606,74 @@ class DatabaseService {
   // ============ LIKED SONGS OPERATIONS ============
 
   Future<void> likeSong(int userId, SongModel song) async {
-    final db = await database;
-    
-    // Cache the song
-    await cacheSong(song);
-    
-    await db.insert(
-      'liked_songs',
-      {
-        'user_id': userId,
-        'song_id': song.id,
-        'liked_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    try {
+      final db = await database;
+      
+      // Cache the song
+      await cacheSong(song);
+      
+      await db.insert(
+        'liked_songs',
+        {
+          'user_id': userId,
+          'song_id': song.id,
+          'liked_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      print('Error liking song: $e');
+      // Re-throw to let caller handle it
+      rethrow;
+    }
   }
 
   Future<void> unlikeSong(int userId, String songId) async {
-    final db = await database;
-    await db.delete(
-      'liked_songs',
-      where: 'user_id = ? AND song_id = ?',
-      whereArgs: [userId, songId],
-    );
+    try {
+      final db = await database;
+      await db.delete(
+        'liked_songs',
+        where: 'user_id = ? AND song_id = ?',
+        whereArgs: [userId, songId],
+      );
+    } catch (e) {
+      print('Error unliking song: $e');
+      rethrow;
+    }
   }
 
   Future<bool> isSongLiked(int userId, String songId) async {
-    final db = await database;
-    final results = await db.query(
-      'liked_songs',
-      where: 'user_id = ? AND song_id = ?',
-      whereArgs: [userId, songId],
-    );
+    try {
+      final db = await database;
+      final results = await db.query(
+        'liked_songs',
+        where: 'user_id = ? AND song_id = ?',
+        whereArgs: [userId, songId],
+      );
 
-    return results.isNotEmpty;
+      return results.isNotEmpty;
+    } catch (e) {
+      // Handle database closed error gracefully
+      print('Error checking if song is liked: $e');
+      return false;
+    }
   }
 
   Future<List<String>> getLikedSongIds(int userId) async {
-    final db = await database;
-    final results = await db.query(
-      'liked_songs',
-      where: 'user_id = ?',
-      whereArgs: [userId],
-      orderBy: 'liked_at DESC',
-    );
+    try {
+      final db = await database;
+      final results = await db.query(
+        'liked_songs',
+        where: 'user_id = ?',
+        whereArgs: [userId],
+        orderBy: 'liked_at DESC',
+      );
 
-    return results.map((row) => row['song_id'] as String).toList();
+      return results.map((row) => row['song_id'] as String).toList();
+    } catch (e) {
+      print('Error getting liked song IDs: $e');
+      return [];
+    }
   }
 
   Future<List<SongModel>> getLikedSongs(int userId) async {
@@ -718,8 +743,9 @@ class DatabaseService {
     return digest.toString();
   }
 
-  Future<void> close() async {
-    final db = await database;
-    await db.close();
-  }
+  // Remove or comment out the close() method to prevent database from being closed
+  // Future<void> close() async {
+  //   final db = await database;
+  //   await db.close();
+  // }
 }
