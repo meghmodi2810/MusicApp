@@ -73,14 +73,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Widget _buildPlayerContent(BuildContext context, MusicPlayerProvider player, SongModel song, ThemeProvider themeProvider) {
     final screenWidth = MediaQuery.of(context).size.width;
+    int _overscrollCount = 0;
 
     return NotificationListener<ScrollNotification>(
       onNotification: (ScrollNotification notification) {
-        // If at top and trying to scroll down, dismiss the screen
+        // Only dismiss if at top and consistently swiping down
         if (notification is OverscrollNotification) {
           if (_scrollController.position.pixels <= 0 && notification.overscroll < 0) {
-            Navigator.pop(context);
-            return true;
+            _overscrollCount++;
+            // Require 3 consecutive overscroll events and significant overscroll distance
+            if (_overscrollCount >= 3 && notification.overscroll < -20) {
+              Navigator.pop(context);
+              _overscrollCount = 0;
+              return true;
+            }
+          }
+        } else if (notification is ScrollUpdateNotification) {
+          // Reset counter if user scrolls normally
+          if (_scrollController.position.pixels > 0) {
+            _overscrollCount = 0;
           }
         }
         return false;

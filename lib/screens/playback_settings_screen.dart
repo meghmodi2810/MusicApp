@@ -242,6 +242,58 @@ class PlaybackSettingsScreen extends StatelessWidget {
                         setState(() {});
                       },
                     ),
+                    const SizedBox(height: 16),
+                    // Crossfade Curve Selector
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Transition Style',
+                          style: TextStyle(color: themeProvider.textColor),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: themeProvider.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButton<CrossfadeCurve>(
+                            value: Provider.of<MusicPlayerProvider>(context).crossfadeCurve,
+                            dropdownColor: themeProvider.cardColor,
+                            underline: const SizedBox(),
+                            isDense: true,
+                            style: TextStyle(
+                              color: themeProvider.primaryColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                            items: CrossfadeCurve.values.map((curve) {
+                              return DropdownMenuItem(
+                                value: curve,
+                                child: Text(_getCurveName(curve)),
+                              );
+                            }).toList(),
+                            onChanged: (curve) {
+                              if (curve != null) {
+                                final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+                                player.setCrossfadeCurve(curve);
+                                setState(() {});
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _getCurveDescription(Provider.of<MusicPlayerProvider>(context).crossfadeCurve),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: themeProvider.secondaryTextColor,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
               ),
@@ -251,5 +303,35 @@ class PlaybackSettingsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getCurveName(CrossfadeCurve curve) {
+    switch (curve) {
+      case CrossfadeCurve.linear:
+        return 'Linear';
+      case CrossfadeCurve.equalPower:
+        return 'Equal Power';
+      case CrossfadeCurve.quadratic:
+        return 'Quadratic';
+      case CrossfadeCurve.logarithmic:
+        return 'Logarithmic';
+      case CrossfadeCurve.sCurve:
+        return 'S-Curve';
+    }
+  }
+
+  String _getCurveDescription(CrossfadeCurve curve) {
+    switch (curve) {
+      case CrossfadeCurve.linear:
+        return 'Simple fade - can sound abrupt';
+      case CrossfadeCurve.equalPower:
+        return 'Spotify-style - maintains constant loudness';
+      case CrossfadeCurve.quadratic:
+        return 'Smooth acceleration and deceleration';
+      case CrossfadeCurve.logarithmic:
+        return 'Natural for human hearing (dB scale)';
+      case CrossfadeCurve.sCurve:
+        return 'Very smooth - slow start and end';
+    }
   }
 }

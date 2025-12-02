@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
@@ -11,6 +12,7 @@ import '../services/music_api_service.dart';
 class MusicPlayerProvider extends ChangeNotifier {
   AudioPlayer _audioPlayer = AudioPlayer();
   AudioPlayer? _crossfadePlayer; // Secondary player for crossfade
+  AudioPlayer? _precachePlayer; // Player for pre-caching next song
   AudioPlayerHandler? _audioHandler;
   
   // Stream subscriptions for cleanup
@@ -25,6 +27,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   static const _positionUpdateInterval = Duration(milliseconds: 200); // 5 updates/sec instead of 60
   
   SongModel? _currentSong;
+  SongModel? _precachedSong; // Track which song is pre-cached
   List<SongModel> _playlist = [];
   List<SongModel> _queue = [];
   int _currentIndex = 0;
@@ -40,10 +43,18 @@ class MusicPlayerProvider extends ChangeNotifier {
   bool _crossfadeEnabled = false;
   int _crossfadeDuration = 5;
   bool _isCrossfading = false;
+  bool _crossfadeJustCompleted = false; // Track if crossfade just finished to ignore stale completion events
+  CrossfadeCurve _crossfadeCurve = CrossfadeCurve.equalPower; // Spotify-style default
+  
+  // Pre-cache lock to prevent multiple concurrent pre-cache operations
+  bool _isPrecaching = false;
   
   // Volume normalization
   bool _volumeNormalization = false;
   double _normalizedVolume = 1.0;
+  
+  // Track if provider is disposed
+  bool _isDisposed = false;
 
   // PERFORMANCE: ValueNotifier for position (avoids full widget rebuilds)
   final ValueNotifier<Duration> positionNotifier = ValueNotifier(Duration.zero);
@@ -68,6 +79,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   bool get crossfadeEnabled => _crossfadeEnabled;
   int get crossfadeDuration => _crossfadeDuration;
   bool get volumeNormalization => _volumeNormalization;
+  CrossfadeCurve get crossfadeCurve => _crossfadeCurve;
 
   MusicPlayerProvider() {
     _initializePlayer();
@@ -106,14 +118,11 @@ class MusicPlayerProvider extends ChangeNotifier {
   }
 
   void _setupPlayerListeners(AudioPlayer player) {
-    // Cancel existing subscriptions
-    _playerStateSubscription?.cancel();
-    _positionSubscription?.cancel();
-    _durationSubscription?.cancel();
-    _processingStateSubscription?.cancel();
-    _positionThrottleTimer?.cancel();
+    // Cancel existing subscriptions first
+    _cancelPlayerSubscriptions();
 
     _playerStateSubscription = player.playerStateStream.listen((state) {
+      if (_isDisposed) return;
       _isPlaying = state.playing;
       playingNotifier.value = state.playing;
       notifyListeners();
@@ -121,6 +130,7 @@ class MusicPlayerProvider extends ChangeNotifier {
 
     // PERFORMANCE FIX: Throttle position updates
     _positionSubscription = player.positionStream.listen((pos) {
+      if (_isDisposed) return;
       _position = pos;
       positionNotifier.value = pos;
       
@@ -134,6 +144,14 @@ class MusicPlayerProvider extends ChangeNotifier {
         }
       }
       
+      // Pre-cache next song when 80% through current song (with lock check)
+      if (_duration.inSeconds > 0 && !_isPrecaching) {
+        final progress = pos.inSeconds / _duration.inSeconds;
+        if (progress >= 0.8 && _precachedSong == null && !_isCrossfading) {
+          _precacheNextSong();
+        }
+      }
+      
       // Check for crossfade trigger
       if (_crossfadeEnabled && !_isCrossfading && _duration.inSeconds > 0) {
         final remaining = _duration.inSeconds - pos.inSeconds;
@@ -144,6 +162,7 @@ class MusicPlayerProvider extends ChangeNotifier {
     });
 
     _durationSubscription = player.durationStream.listen((dur) {
+      if (_isDisposed) return;
       _duration = dur ?? Duration.zero;
       durationNotifier.value = dur ?? Duration.zero;
       
@@ -154,6 +173,7 @@ class MusicPlayerProvider extends ChangeNotifier {
     });
 
     _processingStateSubscription = player.processingStateStream.listen((state) {
+      if (_isDisposed) return;
       if (state == ProcessingState.completed) {
         _handleSongComplete();
       }
@@ -163,89 +183,261 @@ class MusicPlayerProvider extends ChangeNotifier {
     });
   }
 
+  // Helper method to cancel all player subscriptions
+  void _cancelPlayerSubscriptions() {
+    _playerStateSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _processingStateSubscription?.cancel();
+    _positionThrottleTimer?.cancel();
+    
+    _playerStateSubscription = null;
+    _positionSubscription = null;
+    _durationSubscription = null;
+    _processingStateSubscription = null;
+  }
+
   Future<void> _startCrossfade() async {
-    if (_isCrossfading || _loopMode == LoopMode.one) return;
+    if (_isCrossfading || _loopMode == LoopMode.one || _isDisposed) return;
     
     final nextSong = _getNextSongForCrossfade();
-    if (nextSong == null) return;
+    if (nextSong == null) {
+      debugPrint('❌ No next song available for crossfade');
+      return;
+    }
 
     _isCrossfading = true;
     
+    // Calculate actual remaining time for crossfade
+    final remainingSeconds = _duration.inMilliseconds > 0 
+        ? (_duration.inMilliseconds - _position.inMilliseconds) / 1000.0
+        : _crossfadeDuration.toDouble();
+    
+    // Use the smaller of configured duration or remaining time (minus a small buffer)
+    final actualCrossfadeDuration = math.min(
+      _crossfadeDuration.toDouble(),
+      math.max(remainingSeconds - 0.5, 1.0) // At least 1 second, leave 0.5s buffer
+    );
+    
+    debugPrint('🎵 Starting crossfade to: ${nextSong.title} (${actualCrossfadeDuration.toStringAsFixed(1)}s)');
+    
+    // Store reference to old player BEFORE any async operations
+    final oldPlayer = _audioPlayer;
+    AudioPlayer? newPlayer;
+    
     try {
-      // Create secondary player for crossfade
-      _crossfadePlayer = AudioPlayer();
-      
-      final url = nextSong.playableUrl;
-      if (url.isEmpty) {
+      // Use pre-cached player if available, otherwise create new one
+      if (_precachePlayer != null && _precachedSong?.id == nextSong.id) {
+        debugPrint('✅ Using pre-cached song for crossfade: ${nextSong.title}');
+        newPlayer = _precachePlayer;
+        _precachePlayer = null;
+        _precachedSong = null;
+      } else {
+        debugPrint('⚠️ Pre-cache miss, loading song: ${nextSong.title}');
+        newPlayer = AudioPlayer();
+        
+        final url = nextSong.playableUrl;
+        if (url.isEmpty) {
+          debugPrint('❌ No playable URL for crossfade song');
+          newPlayer.dispose();
+          _isCrossfading = false;
+          return;
+        }
+
+        try {
+          if (nextSong.isLocal) {
+            await newPlayer.setFilePath(url);
+          } else {
+            await newPlayer.setUrl(url);
+          }
+        } catch (e) {
+          debugPrint('❌ Failed to load crossfade song: $e');
+          newPlayer.dispose();
+          _isCrossfading = false;
+          return;
+        }
+      }
+
+      if (newPlayer == null || _isDisposed) {
         _isCrossfading = false;
         return;
       }
 
-      if (nextSong.isLocal) {
-        await _crossfadePlayer!.setFilePath(url);
-      } else {
-        await _crossfadePlayer!.setUrl(url);
-      }
+      // IMPORTANT: Store newPlayer in a local variable and DON'T use _crossfadePlayer during the loop
+      final crossfadeNewPlayer = newPlayer;
 
-      // Start at 0 volume
-      await _crossfadePlayer!.setVolume(0);
-      await _crossfadePlayer!.play();
+      // Start playback at 0 volume
+      await crossfadeNewPlayer.setVolume(0);
+      await crossfadeNewPlayer.play();
+      
+      debugPrint('▶️ Crossfade player started playing');
 
-      // Animate volume crossfade
-      final steps = _crossfadeDuration * 10; // 10 steps per second
+      // Spotify-style crossfade with smooth curves
+      // Use 10 steps/sec for stability, but adapt to actual duration
+      final totalSteps = (actualCrossfadeDuration * 10).round();
       const stepDuration = Duration(milliseconds: 100);
       
-      for (int i = 0; i <= steps; i++) {
-        if (!_isCrossfading) break;
+      for (int i = 0; i <= totalSteps; i++) {
+        // Check if we should stop
+        if (_isDisposed) {
+          debugPrint('⚠️ Crossfade interrupted - disposed at step $i');
+          crossfadeNewPlayer.dispose();
+          _isCrossfading = false;
+          return;
+        }
         
-        final progress = i / steps;
-        final fadeOutVolume = _volume * (1 - progress);
-        final fadeInVolume = _volume * progress;
+        final progress = totalSteps > 0 ? i / totalSteps : 1.0; // 0.0 to 1.0
         
-        await _audioPlayer.setVolume(fadeOutVolume);
-        await _crossfadePlayer?.setVolume(fadeInVolume);
+        // Apply smooth volume curve
+        final volumes = _calculateCrossfadeVolumes(progress);
+        
+        // Set volumes - use try-catch for each to handle disposed players
+        try {
+          oldPlayer.setVolume(volumes.fadeOut * _volume);
+        } catch (e) {
+          // Old player might be completed/disposed - that's OK
+        }
+        
+        try {
+          crossfadeNewPlayer.setVolume(volumes.fadeIn * _volume);
+        } catch (e) {
+          // New player issue - this is a problem, abort
+          debugPrint('❌ New player volume error: $e');
+          break;
+        }
         
         await Future.delayed(stepDuration);
       }
 
-      // Complete the crossfade - swap the players
-      if (_isCrossfading && _crossfadePlayer != null) {
-        // Store reference to old player for disposal
-        final oldPlayer = _audioPlayer;
-        
-        // Swap to the new player
-        _audioPlayer = _crossfadePlayer!;
-        _crossfadePlayer = null;
-        
-        // Update current song and playlist state
-        _currentSong = nextSong;
-        if (_queue.isNotEmpty) {
-          _queue.removeAt(0);
-        } else if (_playlist.isNotEmpty) {
-          _currentIndex = (_currentIndex + 1) % _playlist.length;
-        }
-        
-        // Ensure volume is set correctly
+      debugPrint('🔄 Crossfade loop complete, swapping players...');
+
+      // Check if still valid
+      if (_isDisposed) {
+        crossfadeNewPlayer.dispose();
+        _isCrossfading = false;
+        return;
+      }
+
+      // Cancel subscriptions on old player BEFORE swapping
+      _cancelPlayerSubscriptions();
+      
+      // Swap to the new player
+      _audioPlayer = crossfadeNewPlayer;
+      
+      // Update current song and playlist state
+      _currentSong = nextSong;
+      if (_queue.isNotEmpty) {
+        _queue.removeAt(0);
+      } else if (_playlist.isNotEmpty) {
+        _currentIndex = (_currentIndex + 1) % _playlist.length;
+      }
+      
+      // Clear pre-cache state (will re-cache at 80% of new song)
+      _precachedSong = null;
+      _isPrecaching = false;
+      
+      // Ensure volume is set correctly on new player
+      try {
         if (_volumeNormalization) {
           _applyVolumeNormalization();
         } else {
           await _audioPlayer.setVolume(_volume);
         }
-        
-        // Setup listeners on the new player
-        _setupPlayerListeners(_audioPlayer);
-        
-        // Stop and dispose old player
-        await oldPlayer.stop();
-        await oldPlayer.dispose();
+      } catch (e) {
+        debugPrint('Error setting volume on new player: $e');
       }
+      
+      // Setup listeners on the new player
+      _setupPlayerListeners(_audioPlayer);
+      
+      // Update duration from new player
+      _duration = _audioPlayer.duration ?? Duration.zero;
+      durationNotifier.value = _duration;
+      
+      // Reset position
+      _position = _audioPlayer.position;
+      positionNotifier.value = _position;
+      
+      // Update notification with new song info
+      try {
+        await _audioHandler?.updateSongMediaItem(
+          nextSong.title,
+          nextSong.artist,
+          nextSong.albumArt,
+          _duration,
+        );
+      } catch (e) {
+        debugPrint('Error updating notification: $e');
+      }
+      
+      debugPrint('✅ Crossfade complete: ${nextSong.title}');
+      
+      // Now it's safe to set _isCrossfading to false
+      _isCrossfading = false;
+      _crossfadeJustCompleted = true; // Set flag to ignore stale completion events
+      notifyListeners();
+      
+      // Stop and dispose old player in background (don't await)
+      _disposeOldPlayer(oldPlayer);
+      
     } catch (e) {
-      debugPrint('Crossfade error: $e');
-      _crossfadePlayer?.dispose();
-      _crossfadePlayer = null;
-    } finally {
+      debugPrint('❌ Crossfade error: $e');
       _isCrossfading = false;
       notifyListeners();
+      
+      // Fallback: try to play next song normally
+      if (!_isDisposed) {
+        debugPrint('🔄 Falling back to normal playback');
+        await _playNextWithSmartAutoplay();
+      }
+    }
+  }
+
+  // Dispose old player in background to avoid blocking
+  Future<void> _disposeOldPlayer(AudioPlayer player) async {
+    try {
+      await player.stop();
+      await Future.delayed(const Duration(milliseconds: 200));
+      await player.dispose();
+      debugPrint('🗑️ Old player disposed');
+    } catch (e) {
+      debugPrint('Error disposing old player: $e');
+    }
+  }
+
+  /// Calculate crossfade volumes using smooth curves (Spotify-style)
+  /// Returns (fadeOut, fadeIn) volume multipliers between 0.0 and 1.0
+  ({double fadeOut, double fadeIn}) _calculateCrossfadeVolumes(double progress) {
+    switch (_crossfadeCurve) {
+      case CrossfadeCurve.linear:
+        // Simple linear crossfade (not recommended - sounds abrupt)
+        return (fadeOut: 1.0 - progress, fadeIn: progress);
+        
+      case CrossfadeCurve.equalPower:
+        // Equal power crossfade (Spotify default) - maintains constant perceived loudness
+        // Uses sine/cosine curves: sqrt behavior for equal power
+        final fadeOut = math.cos(progress * math.pi / 2);
+        final fadeIn = math.sin(progress * math.pi / 2);
+        return (fadeOut: fadeOut, fadeIn: fadeIn);
+        
+      case CrossfadeCurve.quadratic:
+        // Quadratic ease - smooth acceleration/deceleration
+        final fadeOut = 1.0 - (progress * progress);
+        final fadeIn = progress * progress;
+        return (fadeOut: fadeOut, fadeIn: fadeIn);
+        
+      case CrossfadeCurve.logarithmic:
+        // Logarithmic curve - more natural for human hearing (dB scale)
+        // Slower fade at the start, faster at the end
+        final fadeOut = progress < 1.0 ? math.pow(1.0 - progress, 2).toDouble() : 0.0;
+        final fadeIn = progress > 0.0 ? (1.0 - math.pow(1.0 - progress, 0.5)).toDouble() : 0.0;
+        return (fadeOut: fadeOut, fadeIn: fadeIn);
+        
+      case CrossfadeCurve.sCurve:
+        // S-curve (smoothstep) - very smooth transition, Spotify-like
+        // Slow start, fast middle, slow end
+        final t = progress * progress * (3.0 - 2.0 * progress); // smoothstep
+        return (fadeOut: 1.0 - t, fadeIn: t);
     }
   }
 
@@ -261,6 +453,84 @@ class MusicPlayerProvider extends ChangeNotifier {
     return _playlist[nextIndex];
   }
 
+  // Pre-cache the next song for gapless playback and crossfade
+  Future<void> _precacheNextSong() async {
+    // Prevent concurrent pre-cache operations
+    if (_isPrecaching || _isDisposed) return;
+    _isPrecaching = true;
+    
+    try {
+      final nextSong = _getNextSongForCrossfade();
+      if (nextSong == null) {
+        return; // No next song
+      }
+      
+      // Check if already cached
+      if (nextSong.id == _precachedSong?.id) {
+        return; // Already cached
+      }
+
+      debugPrint('🎵 Pre-caching next song: ${nextSong.title}');
+
+      // Dispose old pre-cache player if exists
+      final oldPrecachePlayer = _precachePlayer;
+      _precachePlayer = null;
+      
+      if (oldPrecachePlayer != null) {
+        try {
+          await oldPrecachePlayer.dispose();
+        } catch (e) {
+          debugPrint('Error disposing old precache player: $e');
+        }
+      }
+      
+      // Create new pre-cache player
+      final newPrecachePlayer = AudioPlayer();
+
+      final url = nextSong.playableUrl;
+      if (url.isEmpty) {
+        debugPrint('❌ No playable URL for next song: ${nextSong.title}');
+        newPrecachePlayer.dispose();
+        return;
+      }
+
+      // Load the audio file (but don't play)
+      try {
+        if (nextSong.isLocal) {
+          await newPrecachePlayer.setFilePath(url);
+        } else {
+          await newPrecachePlayer.setUrl(url);
+        }
+      } catch (e) {
+        debugPrint('❌ Failed to load precache song: $e');
+        newPrecachePlayer.dispose();
+        return;
+      }
+
+      // Check if we're still in a valid state
+      if (_isDisposed || _isCrossfading) {
+        newPrecachePlayer.dispose();
+        return;
+      }
+
+      // Set volume to 0 (ready for crossfade)
+      await newPrecachePlayer.setVolume(0);
+
+      // Store the pre-cached player and song
+      _precachePlayer = newPrecachePlayer;
+      _precachedSong = nextSong;
+      
+      debugPrint('✅ Pre-cached: ${nextSong.title}');
+    } catch (e) {
+      debugPrint('Error pre-caching next song: $e');
+      _precachePlayer?.dispose();
+      _precachePlayer = null;
+      _precachedSong = null;
+    } finally {
+      _isPrecaching = false;
+    }
+  }
+
   Future<void> playSong(SongModel song, {List<SongModel>? playlist}) async {
     try {
       // Cancel any ongoing crossfade
@@ -268,6 +538,11 @@ class MusicPlayerProvider extends ChangeNotifier {
       _crossfadePlayer?.stop();
       _crossfadePlayer?.dispose();
       _crossfadePlayer = null;
+      
+      // Clear pre-cache when manually changing songs
+      _precachePlayer?.dispose();
+      _precachePlayer = null;
+      _precachedSong = null;
       
       _isLoading = true;
       notifyListeners();
@@ -429,8 +704,16 @@ class MusicPlayerProvider extends ChangeNotifier {
   }
 
   void _handleSongComplete() {
-    if (_crossfadeEnabled && !_isCrossfading) {
-      // Crossfade should have already handled this
+    // If crossfade is actively running, it will handle the transition
+    if (_isCrossfading) {
+      debugPrint('🔄 Song completed during crossfade - crossfade will handle transition');
+      return;
+    }
+    
+    // If crossfade just completed, ignore this stale completion event from the old player
+    if (_crossfadeJustCompleted) {
+      debugPrint('🔄 Ignoring stale completion event after crossfade');
+      _crossfadeJustCompleted = false; // Reset the flag
       return;
     }
     
@@ -545,6 +828,11 @@ class MusicPlayerProvider extends ChangeNotifier {
       _crossfadePlayer?.dispose();
       _crossfadePlayer = null;
       
+      // Clear pre-cache when manually changing songs
+      _precachePlayer?.dispose();
+      _precachePlayer = null;
+      _precachedSong = null;
+      
       _isLoading = true;
       notifyListeners();
 
@@ -623,6 +911,12 @@ class MusicPlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Configure crossfade curve type
+  void setCrossfadeCurve(CrossfadeCurve curve) {
+    _crossfadeCurve = curve;
+    notifyListeners();
+  }
+
   // Configure volume normalization
   void setVolumeNormalization(bool enabled) {
     _volumeNormalization = enabled;
@@ -648,16 +942,52 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _positionThrottleTimer?.cancel();
-    _playerStateSubscription?.cancel();
-    _positionSubscription?.cancel();
-    _durationSubscription?.cancel();
-    _processingStateSubscription?.cancel();
-    _crossfadePlayer?.dispose();
-    _audioPlayer.dispose();
+    _isDisposed = true;
+    _isCrossfading = false;
+    
+    _cancelPlayerSubscriptions();
+    
+    // Dispose players safely
+    try {
+      _crossfadePlayer?.dispose();
+    } catch (e) {
+      debugPrint('Error disposing crossfade player: $e');
+    }
+    
+    try {
+      _precachePlayer?.dispose();
+    } catch (e) {
+      debugPrint('Error disposing precache player: $e');
+    }
+    
+    try {
+      _audioPlayer.dispose();
+    } catch (e) {
+      debugPrint('Error disposing audio player: $e');
+    }
+    
     positionNotifier.dispose();
     durationNotifier.dispose();
     playingNotifier.dispose();
     super.dispose();
   }
+}
+
+/// Crossfade curve types for different transition styles
+enum CrossfadeCurve {
+  /// Linear crossfade - simple but can sound abrupt
+  linear,
+  
+  /// Equal power crossfade (Spotify default) - maintains constant perceived loudness
+  /// Uses sine/cosine curves for smooth, natural transitions
+  equalPower,
+  
+  /// Quadratic ease - smooth acceleration/deceleration
+  quadratic,
+  
+  /// Logarithmic curve - more natural for human hearing (follows dB scale)
+  logarithmic,
+  
+  /// S-curve (smoothstep) - very smooth transition with slow start/end
+  sCurve,
 }
