@@ -277,9 +277,9 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
-                tabs: [
-                  Tab(text: 'Songs (${_songs.length})'),
-                  Tab(text: 'Albums (${_albums.length})'),
+                tabs: const [
+                  Tab(text: 'Songs'),
+                  Tab(text: 'Albums'),
                   Tab(text: 'Related'),
                 ],
               ),

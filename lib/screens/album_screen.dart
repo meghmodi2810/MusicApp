@@ -54,8 +54,8 @@ class _AlbumScreenState extends State<AlbumScreen> {
 
     return Scaffold(
       backgroundColor: themeProvider.backgroundColor,
-      body: CustomScrollView(
-        slivers: [
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
           // Album Header
           SliverAppBar(
             expandedHeight: 350,
@@ -74,12 +74,19 @@ class _AlbumScreenState extends State<AlbumScreen> {
                       : Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [accentColor, accentColor.withOpacity(0.5)],
+                              colors: [
+                                accentColor,
+                                accentColor.withOpacity(0.5),
+                              ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                           ),
-                          child: Icon(Icons.album, size: 120, color: Colors.white54),
+                          child: Icon(
+                            Icons.album,
+                            size: 120,
+                            color: Colors.white54,
+                          ),
                         ),
                   // Gradient overlay
                   DecoratedBox(
@@ -145,13 +152,19 @@ class _AlbumScreenState extends State<AlbumScreen> {
                           onPressed: _songs.isNotEmpty
                               ? () {
                                   context.read<MusicPlayerProvider>().playSong(
-                                        _songs.first,
-                                        playlist: _songs,
-                                      );
+                                    _songs.first,
+                                    playlist: _songs,
+                                  );
                                 }
                               : null,
                           icon: Icon(Icons.play_arrow_rounded, size: 28),
-                          label: Text('Play', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          label: Text(
+                            'Play',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: accentColor,
                             foregroundColor: Colors.white,
@@ -167,15 +180,23 @@ class _AlbumScreenState extends State<AlbumScreen> {
                         child: OutlinedButton.icon(
                           onPressed: _songs.isNotEmpty
                               ? () {
-                                  final shuffledSongs = List<SongModel>.from(_songs)..shuffle();
+                                  final shuffledSongs = List<SongModel>.from(
+                                    _songs,
+                                  )..shuffle();
                                   context.read<MusicPlayerProvider>().playSong(
-                                        shuffledSongs.first,
-                                        playlist: shuffledSongs,
-                                      );
+                                    shuffledSongs.first,
+                                    playlist: shuffledSongs,
+                                  );
                                 }
                               : null,
                           icon: Icon(Icons.shuffle, size: 24),
-                          label: Text('Shuffle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          label: Text(
+                            'Shuffle',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: accentColor,
                             side: BorderSide(color: accentColor, width: 2),
@@ -195,13 +216,18 @@ class _AlbumScreenState extends State<AlbumScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _songs.isNotEmpty
                           ? () async {
-                              final downloadService = context.read<DownloadService>();
+                              final downloadService = context
+                                  .read<DownloadService>();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Downloading ${_songs.length} songs...'),
+                                  content: Text(
+                                    'Downloading ${_songs.length} songs...',
+                                  ),
                                   backgroundColor: accentColor,
                                   behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                               );
                               for (final song in _songs) {
@@ -210,20 +236,35 @@ class _AlbumScreenState extends State<AlbumScreen> {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Album downloaded successfully'),
+                                    content: Text(
+                                      'Album downloaded successfully',
+                                    ),
                                     backgroundColor: Colors.green,
                                     behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                 );
                               }
                             }
                           : null,
                       icon: Icon(Icons.download_outlined, size: 24),
-                      label: Text('Download Album', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      label: Text(
+                        'Download Album',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: textColor,
-                        side: BorderSide(color: themeProvider.secondaryTextColor.withOpacity(0.3), width: 2),
+                        side: BorderSide(
+                          color: themeProvider.secondaryTextColor.withOpacity(
+                            0.3,
+                          ),
+                          width: 2,
+                        ),
                         padding: EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -231,37 +272,26 @@ class _AlbumScreenState extends State<AlbumScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
-
-          // Songs List
-          if (_isLoading)
-            SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: CircularProgressIndicator(color: accentColor),
+        ],
+        body: _isLoading
+            ? Center(child: CircularProgressIndicator(color: accentColor))
+            : _songs.isEmpty
+            ? Center(
+                child: Text(
+                  'No songs available',
+                  style: TextStyle(color: themeProvider.secondaryTextColor),
                 ),
-              ),
-            )
-          else if (_songs.isEmpty)
-            SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text(
-                    'No songs available',
-                    style: TextStyle(color: themeProvider.secondaryTextColor),
-                  ),
-                ),
-              ),
-            )
-          else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.only(bottom: 100),
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: _songs.length,
+                itemBuilder: (context, index) {
                   return SongTile(
                     song: _songs[index],
                     playlist: _songs,
@@ -269,13 +299,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                     trackNumber: index + 1,
                   );
                 },
-                childCount: _songs.length,
               ),
-            ),
-
-          // Bottom padding
-          SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
       ),
     );
   }

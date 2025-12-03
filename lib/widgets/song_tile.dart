@@ -225,9 +225,27 @@ class SongTile extends StatelessWidget {
                   '🔍 Playing from search: ${song.title} - Next will be similar songs',
                 );
               } else {
-                // From playlist/album: Use the provided playlist
-                player.playSong(song, playlist: playlist);
-                debugPrint('📀 Playing from playlist: ${song.title}');
+                // CRITICAL FIX: Check if same song from same playlist is already loaded
+                // If yes, don't restart, just resume/open player
+                final isSamePlaylist =
+                    player.playlist.isNotEmpty &&
+                    playlist.isNotEmpty &&
+                    player.playlist.length == playlist.length &&
+                    player.playlist.first.id == playlist.first.id;
+
+                if (isSamePlaylist && player.currentSong?.id == song.id) {
+                  // Same song from same playlist - don't restart
+                  debugPrint(
+                    '🎵 Same song from same playlist - opening player',
+                  );
+                  if (!player.isPlaying) {
+                    player.togglePlayPause();
+                  }
+                } else {
+                  // Different song or playlist - play normally
+                  player.playSong(song, playlist: playlist);
+                  debugPrint('📀 Playing from playlist: ${song.title}');
+                }
               }
 
               final authProvider = Provider.of<AuthProvider>(

@@ -707,9 +707,15 @@ class MusicPlayerProvider extends ChangeNotifier {
   void toggleShuffle() {
     _isShuffleOn = !_isShuffleOn;
     if (_isShuffleOn && _playlist.isNotEmpty) {
-      final current = _playlist[_currentIndex];
-      _playlist.shuffle();
-      _currentIndex = _playlist.indexOf(current);
+      // FIX: Create a copy of the playlist and shuffle it completely
+      // Don't preserve the current song position - shuffle everything including first song
+      final shuffledPlaylist = List<SongModel>.from(_playlist)..shuffle();
+      _playlist = shuffledPlaylist;
+      // Reset to first song of shuffled playlist
+      _currentIndex = 0;
+      debugPrint(
+        '🔀 Shuffle enabled - playlist shuffled, starting from: ${_playlist[0].title}',
+      );
     }
     notifyListeners();
   }
