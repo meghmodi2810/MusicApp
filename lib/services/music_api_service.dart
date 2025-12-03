@@ -13,21 +13,20 @@ class MusicApiService {
     'https://saavn-api-nu.vercel.app',
     'https://jio-saavn-api.vercel.app',
   ];
-  
-  // Fallback to iTunes for search variety
-  static const String _itunesBaseUrl = 'https://itunes.apple.com';
 
   // Make request with proper error handling and timeout
   Future<Map<String, dynamic>?> _fetchJson(String url) async {
     try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0',
-        },
-      ).timeout(const Duration(seconds: 15));
-      
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data;
@@ -44,7 +43,10 @@ class MusicApiService {
       final url = '$baseUrl$endpoint';
       try {
         final data = await _fetchJson(url);
-        if (data != null && (data['success'] == true || data['data'] != null || data['results'] != null)) {
+        if (data != null &&
+            (data['success'] == true ||
+                data['data'] != null ||
+                data['results'] != null)) {
           debugPrint('✅ Success from: $baseUrl');
           return data;
         }
@@ -60,7 +62,7 @@ class MusicApiService {
   // Parse songs from different API response formats
   List<SongModel> _parseSaavnResults(Map<String, dynamic> data) {
     List<dynamic> results = [];
-    
+
     // Try different response structures
     if (data['data'] != null) {
       if (data['data'] is List) {
@@ -75,9 +77,9 @@ class MusicApiService {
     } else if (data['songs'] != null) {
       results = data['songs'];
     }
-    
+
     if (results.isEmpty) return [];
-    
+
     final songs = <SongModel>[];
     for (final song in results) {
       try {
@@ -89,14 +91,14 @@ class MusicApiService {
         debugPrint('Error parsing song: $e');
       }
     }
-    
+
     return songs;
   }
 
   // Parse albums from different API response formats
   List<AlbumModel> _parseAlbumResults(Map<String, dynamic> data) {
     List<dynamic> results = [];
-    
+
     // Try different response structures
     if (data['data'] != null) {
       if (data['data'] is List) {
@@ -111,9 +113,9 @@ class MusicApiService {
     } else if (data['albums'] != null) {
       results = data['albums'];
     }
-    
+
     if (results.isEmpty) return [];
-    
+
     final albums = <AlbumModel>[];
     for (final album in results) {
       try {
@@ -123,14 +125,14 @@ class MusicApiService {
         continue;
       }
     }
-    
+
     return albums;
   }
 
   // Parse artists from different API response formats
   List<ArtistModel> _parseArtistResults(Map<String, dynamic> data) {
     List<dynamic> results = [];
-    
+
     // Try different response structures
     if (data['data'] != null) {
       if (data['data'] is List) {
@@ -145,9 +147,9 @@ class MusicApiService {
     } else if (data['artists'] != null) {
       results = data['artists'];
     }
-    
+
     if (results.isEmpty) return [];
-    
+
     final artists = <ArtistModel>[];
     for (final artist in results) {
       try {
@@ -156,17 +158,19 @@ class MusicApiService {
         debugPrint('Error parsing artist: $e');
       }
     }
-    
+
     return artists;
   }
 
   // Search for songs
   Future<List<SongModel>> searchSongs(String query) async {
     if (query.isEmpty) return [];
-    
+
     try {
-      final saavnData = await _fetchFromSaavn('/search/songs?query=${Uri.encodeComponent(query)}&limit=30');
-      
+      final saavnData = await _fetchFromSaavn(
+        '/search/songs?query=${Uri.encodeComponent(query)}&limit=30',
+      );
+
       if (saavnData != null) {
         final songs = _parseSaavnResults(saavnData);
         if (songs.isNotEmpty) return songs;
@@ -180,10 +184,12 @@ class MusicApiService {
   // Search for albums with better error handling
   Future<List<AlbumModel>> searchAlbums(String query) async {
     if (query.isEmpty) return [];
-    
+
     try {
-      final saavnData = await _fetchFromSaavn('/search/albums?query=${Uri.encodeComponent(query)}&limit=20');
-      
+      final saavnData = await _fetchFromSaavn(
+        '/search/albums?query=${Uri.encodeComponent(query)}&limit=20',
+      );
+
       if (saavnData != null) {
         return _parseAlbumResults(saavnData);
       }
@@ -196,10 +202,12 @@ class MusicApiService {
   // Search for artists with better error handling
   Future<List<ArtistModel>> searchArtists(String query) async {
     if (query.isEmpty) return [];
-    
+
     try {
-      final saavnData = await _fetchFromSaavn('/search/artists?query=${Uri.encodeComponent(query)}&limit=20');
-      
+      final saavnData = await _fetchFromSaavn(
+        '/search/artists?query=${Uri.encodeComponent(query)}&limit=20',
+      );
+
       if (saavnData != null) {
         return _parseArtistResults(saavnData);
       }
@@ -213,7 +221,7 @@ class MusicApiService {
   Future<SongModel?> getSongById(String songId) async {
     try {
       final data = await _fetchFromSaavn('/songs/$songId');
-      
+
       if (data != null) {
         final songs = _parseSaavnResults(data);
         if (songs.isNotEmpty) {
@@ -229,11 +237,11 @@ class MusicApiService {
   // Get multiple songs by IDs
   Future<List<SongModel>> getSongsByIds(List<String> songIds) async {
     if (songIds.isEmpty) return [];
-    
+
     try {
       final ids = songIds.join(',');
       final data = await _fetchFromSaavn('/songs?ids=$ids');
-      
+
       if (data != null) {
         return _parseSaavnResults(data);
       }
@@ -247,7 +255,9 @@ class MusicApiService {
   Future<List<SongModel>> getTrendingSongs() async {
     try {
       // Try top hits first
-      final data = await _fetchFromSaavn('/search/songs?query=top hits&limit=30');
+      final data = await _fetchFromSaavn(
+        '/search/songs?query=top hits&limit=30',
+      );
       if (data != null) {
         final songs = _parseSaavnResults(data);
         if (songs.isNotEmpty) return songs;
@@ -262,7 +272,9 @@ class MusicApiService {
   // Get trending albums - use more reliable queries
   Future<List<AlbumModel>> getTrendingAlbums() async {
     try {
-      final data = await _fetchFromSaavn('/search/albums?query=popular albums&limit=20');
+      final data = await _fetchFromSaavn(
+        '/search/albums?query=popular albums&limit=20',
+      );
       if (data != null) {
         final albums = _parseAlbumResults(data);
         if (albums.isNotEmpty) return albums;
@@ -276,7 +288,9 @@ class MusicApiService {
   // Get trending artists - use more reliable queries
   Future<List<ArtistModel>> getTrendingArtists() async {
     try {
-      final data = await _fetchFromSaavn('/search/artists?query=popular artists&limit=20');
+      final data = await _fetchFromSaavn(
+        '/search/artists?query=popular artists&limit=20',
+      );
       if (data != null) {
         final artists = _parseArtistResults(data);
         if (artists.isNotEmpty) return artists;
@@ -290,8 +304,10 @@ class MusicApiService {
   // Get new releases
   Future<List<SongModel>> getNewReleases() async {
     try {
-      final data = await _fetchFromSaavn('/search/songs?query=new hindi songs 2024&limit=30');
-      
+      final data = await _fetchFromSaavn(
+        '/search/songs?query=new hindi songs 2024&limit=30',
+      );
+
       if (data != null) {
         final songs = _parseSaavnResults(data);
         if (songs.isNotEmpty) return songs;
@@ -337,7 +353,7 @@ class MusicApiService {
   Future<List<SongModel>> getPlaylistSongs(String playlistId) async {
     try {
       final data = await _fetchFromSaavn('/playlists?id=$playlistId');
-      
+
       if (data != null) {
         return _parseSaavnResults(data);
       }
@@ -350,12 +366,12 @@ class MusicApiService {
   // Search suggestions
   Future<List<String>> getSearchSuggestions(String query) async {
     if (query.isEmpty) return [];
-    
+
     try {
       final data = await _fetchFromSaavn(
-        '/search/songs?query=${Uri.encodeComponent(query)}&limit=5'
+        '/search/songs?query=${Uri.encodeComponent(query)}&limit=5',
       );
-      
+
       if (data != null) {
         List<dynamic> results = [];
         if (data['data']?['results'] != null) {
@@ -363,11 +379,76 @@ class MusicApiService {
         } else if (data['results'] != null) {
           results = data['results'];
         }
-        return results.map((song) => (song['name'] ?? song['title'] ?? '') as String).where((s) => s.isNotEmpty).toList();
+        return results
+            .map((song) => (song['name'] ?? song['title'] ?? '') as String)
+            .where((s) => s.isNotEmpty)
+            .toList();
       }
     } catch (e) {
       debugPrint('Suggestions error: $e');
     }
     return [];
+  }
+
+  // Get artist albums (complete discography)
+  Future<List<AlbumModel>> getArtistAlbums(String artistId) async {
+    try {
+      final data = await _fetchFromSaavn('/artists/$artistId/albums');
+      if (data != null) {
+        return _parseAlbumResults(data);
+      }
+    } catch (e) {
+      debugPrint('Artist albums error: $e');
+    }
+    return [];
+  }
+
+  // Get artist details with complete info
+  Future<Map<String, dynamic>?> getArtistDetails(String artistId) async {
+    try {
+      final data = await _fetchFromSaavn('/artists?id=$artistId');
+      if (data != null) {
+        return data['data'] ?? data;
+      }
+    } catch (e) {
+      debugPrint('Artist details error: $e');
+    }
+    return null;
+  }
+
+  // Get similar/related artists
+  Future<List<ArtistModel>> getRelatedArtists(String artistName) async {
+    try {
+      // Search for similar artists based on the artist name
+      final data = await _fetchFromSaavn(
+        '/search/artists?query=${Uri.encodeComponent(artistName)}&limit=10',
+      );
+      if (data != null) {
+        final artists = _parseArtistResults(data);
+        // Remove the current artist from results and limit to 6
+        return artists
+            .where((a) => a.name.toLowerCase() != artistName.toLowerCase())
+            .take(6)
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Related artists error: $e');
+    }
+    return [];
+  }
+
+  // Filter out artists without images (non-existent profiles)
+  Future<List<ArtistModel>> filterValidArtists(
+    List<ArtistModel> artists,
+  ) async {
+    return artists
+        .where(
+          (artist) =>
+              artist.imageUrl != null &&
+              artist.imageUrl!.isNotEmpty &&
+              !artist.imageUrl!.contains('default') &&
+              artist.id.isNotEmpty,
+        )
+        .toList();
   }
 }

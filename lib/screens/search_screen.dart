@@ -8,7 +8,6 @@ import '../models/song_model.dart';
 import '../models/album_model.dart';
 import '../models/artist_model.dart';
 import '../services/music_api_service.dart';
-import '../services/recommendation_service.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/song_tile.dart';
 import 'album_screen.dart';
@@ -26,7 +25,6 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final MusicApiService _apiService = MusicApiService();
-  final RecommendationService _recommendationService = RecommendationService();
   final FocusNode _focusNode = FocusNode();
 
   List<SongModel> _songs = [];
@@ -114,7 +112,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (query.trim().isEmpty) return;
 
     try {
-      // Fetch all three types simultaneously
+      // PERFORMANCE FIX: Fetch all three types simultaneously
       final results = await Future.wait([
         _apiService
             .searchSongs(query)
@@ -137,23 +135,18 @@ class _SearchScreenState extends State<SearchScreen> {
       ]);
 
       if (mounted && _searchController.text.trim() == query.trim()) {
-        // Sort results by user's music taste
-        final sortedSongs = await _recommendationService
-            .sortSearchResultsByTaste(results[0] as List<SongModel>);
-        final sortedAlbums = await _recommendationService
-            .sortAlbumResultsByTaste(results[1] as List<AlbumModel>);
-        final sortedArtists = await _recommendationService
-            .sortArtistResultsByTaste(results[2] as List<ArtistModel>);
-
+        // PERFORMANCE FIX: Remove sorting by taste - it's slow and unnecessary for search
+        // Users can see their favorite artists first naturally in the results
+        // Sorting adds 500ms+ delay which makes search feel sluggish
         setState(() {
-          _songs = sortedSongs;
-          _albums = sortedAlbums;
-          _artists = sortedArtists;
+          _songs = results[0] as List<SongModel>;
+          _albums = results[1] as List<AlbumModel>;
+          _artists = results[2] as List<ArtistModel>;
           _isLoading = false;
         });
 
         debugPrint(
-          '🎯 Search sorted by taste: ${_songs.take(3).map((s) => s.artist).join(", ")}',
+          '🎯 Search completed: ${_songs.length} songs, ${_albums.length} albums, ${_artists.length} artists',
         );
 
         // Save to recent searches
@@ -529,14 +522,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSongsList(ThemeProvider themeProvider) {
-    // PERFORMANCE FIX: Use ListView.builder with addAutomaticKeepAlives
+    // PERFORMANCE FIX: Optimized ListView for smooth scrolling during playback
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       physics: const BouncingScrollPhysics(),
-      // CRITICAL PERFORMANCE: Cache extents for smooth scrolling
-      cacheExtent: 500,
+      // CRITICAL PERFORMANCE: Extended cache for smooth scrolling
+      cacheExtent: 1000, // Increased from 500
       addAutomaticKeepAlives: false, // Don't keep all items alive
-      addRepaintBoundaries: true, // Isolate repaints
+      addRepaintBoundaries: true, // Isolate repaints per item
       itemCount: _songs.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -551,12 +544,14 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           );
         }
-        // CRITICAL: Use key for efficient list updates
-        return SongTile(
-          key: ValueKey('search_song_${_songs[index - 1].id}'),
-          song: _songs[index - 1],
-          playlist: [],
-          isFromSearch: true,
+        // CRITICAL: Use RepaintBoundary to isolate each tile's repaints
+        return RepaintBoundary(
+          child: SongTile(
+            key: ValueKey('search_song_${_songs[index - 1].id}'),
+            song: _songs[index - 1],
+            playlist: [],
+            isFromSearch: true,
+          ),
         );
       },
     );
@@ -567,7 +562,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       physics: const BouncingScrollPhysics(),
-      cacheExtent: 500,
+      cacheExtent: 1000, // Increased cache
       addAutomaticKeepAlives: false,
       addRepaintBoundaries: true,
       itemCount: _albums.length + 1,
@@ -585,70 +580,78 @@ class _SearchScreenState extends State<SearchScreen> {
           );
         }
         final album = _albums[index - 1];
-        return Container(
-          key: ValueKey('album_${album.id}'),
-          margin: const EdgeInsets.only(bottom: 12),
-          constraints: const BoxConstraints(maxHeight: 90), // OVERFLOW FIX
-          decoration: BoxDecoration(
-            color: themeProvider.cardColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(8),
-            leading: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                width: 60,
-                height: 60,
-                child: album.imageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: album.imageUrl!,
-                        fit: BoxFit.cover,
-                        memCacheWidth: 120,
-                        placeholder: (_, __) => Container(
-                          color: themeProvider.primaryColor.withOpacity(0.2),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          color: themeProvider.primaryColor.withOpacity(0.2),
-                          child: Icon(Icons.album, color: themeProvider.primaryColor),
-                        ),
-                      )
-                    : Container(
-                        color: themeProvider.primaryColor.withOpacity(0.2),
-                        child: Icon(Icons.album, color: themeProvider.primaryColor),
-                      ),
-              ),
+        return RepaintBoundary(
+          child: Container(
+            key: ValueKey('album_${album.id}'),
+            margin: const EdgeInsets.only(bottom: 12),
+            constraints: const BoxConstraints(maxHeight: 90),
+            decoration: BoxDecoration(
+              color: themeProvider.cardColor,
+              borderRadius: BorderRadius.circular(12),
             ),
-            title: Text(
-              album.name,
-              style: TextStyle(
-                color: themeProvider.textColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(8),
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 60,
+                  height: 60,
+                  child: album.imageUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: album.imageUrl!,
+                          fit: BoxFit.cover,
+                          memCacheWidth: 120,
+                          placeholder: (_, __) => Container(
+                            color: themeProvider.primaryColor.withOpacity(0.2),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: themeProvider.primaryColor.withOpacity(0.2),
+                            child: Icon(
+                              Icons.album,
+                              color: themeProvider.primaryColor,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: themeProvider.primaryColor.withOpacity(0.2),
+                          child: Icon(
+                            Icons.album,
+                            color: themeProvider.primaryColor,
+                          ),
+                        ),
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${album.artist}${album.year != null ? ' • ${album.year}' : ''}',
-              style: TextStyle(
+              title: Text(
+                album.name,
+                style: TextStyle(
+                  color: themeProvider.textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                '${album.artist}${album.year != null ? ' • ${album.year}' : ''}',
+                style: TextStyle(
+                  color: themeProvider.secondaryTextColor,
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
                 color: themeProvider.secondaryTextColor,
-                fontSize: 12,
+                size: 20,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AlbumScreen(album: album)),
+                );
+              },
             ),
-            trailing: Icon(
-              Icons.chevron_right,
-              color: themeProvider.secondaryTextColor,
-              size: 20,
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => AlbumScreen(album: album)),
-              );
-            },
           ),
         );
       },
@@ -660,7 +663,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       physics: const BouncingScrollPhysics(),
-      cacheExtent: 500,
+      cacheExtent: 1000, // Increased cache
       addAutomaticKeepAlives: false,
       addRepaintBoundaries: true,
       itemCount: _artists.length + 1,
@@ -678,29 +681,39 @@ class _SearchScreenState extends State<SearchScreen> {
           );
         }
         final artist = _artists[index - 1];
-        return Container(
-          key: ValueKey('artist_${artist.id}'),
-          margin: const EdgeInsets.only(bottom: 12),
-          constraints: const BoxConstraints(maxHeight: 90), // OVERFLOW FIX
-          decoration: BoxDecoration(
-            color: themeProvider.cardColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(8),
-            leading: ClipOval(
-              child: SizedBox(
-                width: 60,
-                height: 60,
-                child: artist.imageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: artist.imageUrl!,
-                        fit: BoxFit.cover,
-                        memCacheWidth: 120,
-                        placeholder: (_, __) => Container(
-                          color: themeProvider.primaryColor.withOpacity(0.2),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
+        return RepaintBoundary(
+          child: Container(
+            key: ValueKey('artist_${artist.id}'),
+            margin: const EdgeInsets.only(bottom: 12),
+            constraints: const BoxConstraints(maxHeight: 90),
+            decoration: BoxDecoration(
+              color: themeProvider.cardColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(8),
+              leading: ClipOval(
+                child: SizedBox(
+                  width: 60,
+                  height: 60,
+                  child: artist.imageUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: artist.imageUrl!,
+                          fit: BoxFit.cover,
+                          memCacheWidth: 120,
+                          placeholder: (_, __) => Container(
+                            color: themeProvider.primaryColor.withOpacity(0.2),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: themeProvider.primaryColor.withOpacity(0.2),
+                            child: Icon(
+                              Icons.person,
+                              color: themeProvider.primaryColor,
+                              size: 30,
+                            ),
+                          ),
+                        )
+                      : Container(
                           color: themeProvider.primaryColor.withOpacity(0.2),
                           child: Icon(
                             Icons.person,
@@ -708,45 +721,39 @@ class _SearchScreenState extends State<SearchScreen> {
                             size: 30,
                           ),
                         ),
-                      )
-                    : Container(
-                        color: themeProvider.primaryColor.withOpacity(0.2),
-                        child: Icon(
-                          Icons.person,
-                          color: themeProvider.primaryColor,
-                          size: 30,
-                        ),
-                      ),
+                ),
               ),
-            ),
-            title: Text(
-              artist.name,
-              style: TextStyle(
-                color: themeProvider.textColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+              title: Text(
+                artist.name,
+                style: TextStyle(
+                  color: themeProvider.textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              'Artist',
-              style: TextStyle(
+              subtitle: Text(
+                'Artist',
+                style: TextStyle(
+                  color: themeProvider.secondaryTextColor,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
                 color: themeProvider.secondaryTextColor,
-                fontSize: 12,
+                size: 20,
               ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ArtistScreen(artist: artist),
+                  ),
+                );
+              },
             ),
-            trailing: Icon(
-              Icons.chevron_right,
-              color: themeProvider.secondaryTextColor,
-              size: 20,
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => ArtistScreen(artist: artist)),
-              );
-            },
           ),
         );
       },

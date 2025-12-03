@@ -39,9 +39,14 @@ class SongTile extends StatelessWidget {
     final textColor = themeProvider.textColor;
     final secondaryText = themeProvider.secondaryTextColor;
 
-    return Consumer<MusicPlayerProvider>(
-      builder: (context, player, child) {
-        final isPlaying = player.currentSong?.id == song.id;
+    // CRITICAL PERFORMANCE FIX: Use Selector instead of Consumer
+    // Only rebuild when currentSong changes, not on every position update
+    return Selector<MusicPlayerProvider, ({String? songId, bool isPlaying})>(
+      selector: (context, player) =>
+          (songId: player.currentSong?.id, isPlaying: player.isPlaying),
+      builder: (context, playerState, child) {
+        final isPlaying = playerState.songId == song.id;
+        final player = Provider.of<MusicPlayerProvider>(context, listen: false);
 
         Widget tileContent = Container(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -133,7 +138,7 @@ class SongTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          player.isPlaying ? Icons.equalizer : Icons.pause,
+                          playerState.isPlaying ? Icons.equalizer : Icons.pause,
                           color: accentColor,
                           size: 24,
                         ),
@@ -192,13 +197,17 @@ class SongTile extends StatelessWidget {
             onTap: () {
               // FIX: If the same song is already playing, just open the player screen
               if (isPlaying) {
-                debugPrint('🎵 Same song already playing, opening player screen');
+                debugPrint(
+                  '🎵 Same song already playing, opening player screen',
+                );
                 if (onTap != null) {
                   onTap!();
                 } else {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const PlayerScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const PlayerScreen(),
+                    ),
                   );
                 }
                 return;
@@ -248,11 +257,19 @@ class SongTile extends StatelessWidget {
         // Wrap with Dismissible if swipe gestures are enabled
         if (settingsProvider.swipeGesturesEnabled) {
           return Dismissible(
-            key: Key('song_tile_${song.id}_${DateTime.now().millisecondsSinceEpoch}'),
+            key: Key(
+              'song_tile_${song.id}_${DateTime.now().millisecondsSinceEpoch}',
+            ),
             confirmDismiss: (direction) async {
-              final authProvider = Provider.of<AuthProvider>(context, listen: false);
-              final playlistProvider = Provider.of<PlaylistProvider>(context, listen: false);
-              
+              final authProvider = Provider.of<AuthProvider>(
+                context,
+                listen: false,
+              );
+              final playlistProvider = Provider.of<PlaylistProvider>(
+                context,
+                listen: false,
+              );
+
               if (direction == DismissDirection.startToEnd) {
                 // Swipe right: Add to liked songs
                 if (!authProvider.isLoggedIn) {
@@ -261,21 +278,29 @@ class SongTile extends StatelessWidget {
                       content: const Text('Please log in to like songs'),
                       backgroundColor: themeProvider.primaryColor,
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   );
                   return false;
                 }
-                
+
                 final isLiked = playlistProvider.isSongLikedSync(song.id);
                 playlistProvider.toggleLikeSong(song);
-                
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(isLiked ? 'Removed from Liked Songs' : 'Added to Liked Songs'),
+                    content: Text(
+                      isLiked
+                          ? 'Removed from Liked Songs'
+                          : 'Added to Liked Songs',
+                    ),
                     backgroundColor: isLiked ? Colors.orange : Colors.red,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -290,7 +315,9 @@ class SongTile extends StatelessWidget {
                       content: const Text('Removed from queue'),
                       backgroundColor: Colors.orange,
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -301,7 +328,9 @@ class SongTile extends StatelessWidget {
                       content: Text('"${song.title}" added to queue'),
                       backgroundColor: themeProvider.primaryColor,
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -322,7 +351,13 @@ class SongTile extends StatelessWidget {
                 children: [
                   Icon(Icons.favorite, color: Colors.white),
                   SizedBox(width: 8),
-                  Text('Like', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Like',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -337,7 +372,13 @@ class SongTile extends StatelessWidget {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text('Queue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Queue',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   SizedBox(width: 8),
                   Icon(Icons.queue_music, color: Colors.white),
                 ],

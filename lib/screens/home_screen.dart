@@ -11,7 +11,7 @@ import '../providers/music_player_provider.dart';
 import '../providers/auth_provider.dart';
 import 'settings_screen.dart';
 import 'player_screen.dart';
-import 'artist_screen.dart';
+import 'artist_detail_screen.dart'; // CHANGED: Use ArtistDetailScreen instead of ArtistScreen
 import 'album_screen.dart';
 import 'see_all_recommendations_screen.dart';
 import 'see_all_albums_screen.dart';
@@ -24,7 +24,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   final MusicApiService _apiService = MusicApiService();
   final RecommendationService _recommendationService = RecommendationService();
   List<SongModel> _recommendedSongs = [];
@@ -53,16 +54,16 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   Future<void> _loadPersonalizedData() async {
     if (!mounted) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       final isNewUser = await _recommendationService.isNewUser();
-      
+
       if (isNewUser) {
         // New user: show trending content
         debugPrint('👤 New user detected - showing trending');
-        
+
         // CRITICAL FIX: Load in parallel with timeout
         final results = await Future.wait([
           _apiService.getTrendingSongs().timeout(
@@ -78,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             onTimeout: () => <ArtistModel>[],
           ),
         ]);
-        
+
         if (mounted) {
           setState(() {
             _recommendedSongs = results[0] as List<SongModel>;
@@ -104,17 +105,28 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Future<void> _loadUserTasteContent() async {
     try {
       // Get CACHED personalized queries
-      final queries = await _recommendationService.getPersonalizedQueries(count: 3); // REDUCED from 5 to 3
-      
+      final queries = await _recommendationService.getPersonalizedQueries(
+        count: 3,
+      ); // REDUCED from 5 to 3
+
       if (queries.isEmpty) {
         debugPrint('⚠️ No favorite artists yet - showing trending');
         // Fallback to trending
         final results = await Future.wait([
-          _apiService.getTrendingSongs().timeout(const Duration(seconds: 5), onTimeout: () => <SongModel>[]),
-          _apiService.getTrendingAlbums().timeout(const Duration(seconds: 5), onTimeout: () => <AlbumModel>[]),
-          _apiService.getTrendingArtists().timeout(const Duration(seconds: 5), onTimeout: () => <ArtistModel>[]),
+          _apiService.getTrendingSongs().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <SongModel>[],
+          ),
+          _apiService.getTrendingAlbums().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <AlbumModel>[],
+          ),
+          _apiService.getTrendingArtists().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <ArtistModel>[],
+          ),
         ]);
-        
+
         if (mounted) {
           setState(() {
             _recommendedSongs = results[0] as List<SongModel>;
@@ -134,33 +146,54 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       // Parallel fetch with timeouts
       final futures = queries.map((query) async {
         return await Future.wait([
-          _apiService.searchSongs(query).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => <SongModel>[],
-          ),
-          _apiService.searchAlbums(query).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => <AlbumModel>[],
-          ),
-          _apiService.searchArtists(query).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => <ArtistModel>[],
-          ),
+          _apiService
+              .searchSongs(query)
+              .timeout(
+                const Duration(seconds: 5),
+                onTimeout: () => <SongModel>[],
+              ),
+          _apiService
+              .searchAlbums(query)
+              .timeout(
+                const Duration(seconds: 5),
+                onTimeout: () => <AlbumModel>[],
+              ),
+          _apiService
+              .searchArtists(query)
+              .timeout(
+                const Duration(seconds: 5),
+                onTimeout: () => <ArtistModel>[],
+              ),
         ]);
       });
 
       final results = await Future.wait(futures);
-      
+
       for (final result in results) {
         allSongs.addAll(result[0] as List<SongModel>);
         allAlbums.addAll(result[1] as List<AlbumModel>);
         allArtists.addAll(result[2] as List<ArtistModel>);
       }
 
-      // Remove duplicates
-      final uniqueSongs = _removeDuplicateSongs(allSongs);
-      final uniqueAlbums = _removeDuplicateAlbums(allAlbums);
-      final uniqueArtists = _removeDuplicateArtists(allArtists);
+      // IMPROVED: Remove duplicates using recommendation service
+      var uniqueSongs = _removeDuplicateSongs(allSongs);
+      var uniqueAlbums = _removeDuplicateAlbums(allAlbums);
+      var uniqueArtists = _removeDuplicateArtists(allArtists);
+
+      // IMPROVED: Filter out song versions (remixes, etc.) - keep only main versions
+      uniqueSongs = await _recommendationService.removeDuplicateVersions(
+        uniqueSongs,
+      );
+
+      // IMPROVED: Remove duplicate albums
+      uniqueAlbums = await _recommendationService.removeDuplicateAlbums(
+        uniqueAlbums,
+      );
+
+      // IMPROVED: Filter out invalid artists and remove duplicates
+      uniqueArtists = await _recommendationService.removeDuplicateArtists(
+        uniqueArtists,
+      );
 
       // Store full lists for "See All" page
       _allRecommendedSongs = uniqueSongs.take(50).toList();
@@ -175,7 +208,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           _recommendedArtists = _allRecommendedArtists.take(7).toList();
           _isLoading = false;
         });
-        debugPrint('✅ Loaded ${_allRecommendedSongs.length} total songs (showing top 7)');
+        debugPrint(
+          '✅ Loaded ${_allRecommendedSongs.length} unique songs, ${_allRecommendedAlbums.length} albums, ${_allRecommendedArtists.length} artists',
+        );
       }
     } catch (e) {
       debugPrint('Error loading user taste content: $e');
@@ -214,12 +249,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     final authProvider = Provider.of<AuthProvider>(context);
     final textColor = themeProvider.textColor;
     final accentColor = themeProvider.primaryColor;
-    
+
     String userName = 'Music Lover';
     if (authProvider.isLoggedIn && authProvider.currentUser != null) {
       userName = authProvider.currentUser!['display_name'] ?? 'Music Lover';
     }
-    
+
     return Scaffold(
       backgroundColor: themeProvider.backgroundColor,
       body: SafeArea(
@@ -282,7 +317,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
                           );
                         },
                         child: Container(
@@ -298,7 +335,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               ),
                             ],
                           ),
-                          child: Icon(Icons.settings_outlined, color: textColor, size: 26),
+                          child: Icon(
+                            Icons.settings_outlined,
+                            color: textColor,
+                            size: 26,
+                          ),
                         ),
                       ),
                     ],
@@ -356,7 +397,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 child: Text(
                   'See All',
                   style: TextStyle(
-                    color: Provider.of<ThemeProvider>(context, listen: false).primaryColor,
+                    color: Provider.of<ThemeProvider>(
+                      context,
+                      listen: false,
+                    ).primaryColor,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -436,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         ),
       );
     }
-    
+
     return SliverToBoxAdapter(
       child: SizedBox(
         height: 200,
@@ -456,12 +500,16 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Widget _buildSongCard(SongModel song, List<SongModel> playlist, ThemeProvider themeProvider) {
+  Widget _buildSongCard(
+    SongModel song,
+    List<SongModel> playlist,
+    ThemeProvider themeProvider,
+  ) {
     return GestureDetector(
       onTap: () {
         // Track song play for recommendations
         _recommendationService.trackSongPlay(song);
-        
+
         context.read<MusicPlayerProvider>().playSong(song, playlist: playlist);
         Navigator.push(
           context,
@@ -489,16 +537,25 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         memCacheWidth: 280,
                         placeholder: (_, __) => Container(
                           color: themeProvider.cardColor,
-                          child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                          child: Icon(
+                            Icons.music_note,
+                            color: themeProvider.secondaryTextColor,
+                          ),
                         ),
                         errorWidget: (_, __, ___) => Container(
                           color: themeProvider.cardColor,
-                          child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                          child: Icon(
+                            Icons.music_note,
+                            color: themeProvider.secondaryTextColor,
+                          ),
                         ),
                       )
                     : Container(
                         color: themeProvider.cardColor,
-                        child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                        child: Icon(
+                          Icons.music_note,
+                          color: themeProvider.secondaryTextColor,
+                        ),
                       ),
               ),
             ),
@@ -532,7 +589,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Widget _buildAlbumsList(List<AlbumModel> albums, ThemeProvider themeProvider) {
+  Widget _buildAlbumsList(
+    List<AlbumModel> albums,
+    ThemeProvider themeProvider,
+  ) {
     return SliverToBoxAdapter(
       child: SizedBox(
         height: 200,
@@ -558,9 +618,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         // Navigate to album detail screen
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => AlbumScreen(album: album),
-          ),
+          MaterialPageRoute(builder: (_) => AlbumScreen(album: album)),
         );
       },
       child: SizedBox(
@@ -584,16 +642,25 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         memCacheWidth: 280,
                         placeholder: (_, __) => Container(
                           color: themeProvider.cardColor,
-                          child: Icon(Icons.album, color: themeProvider.secondaryTextColor),
+                          child: Icon(
+                            Icons.album,
+                            color: themeProvider.secondaryTextColor,
+                          ),
                         ),
                         errorWidget: (_, __, ___) => Container(
                           color: themeProvider.cardColor,
-                          child: Icon(Icons.album, color: themeProvider.secondaryTextColor),
+                          child: Icon(
+                            Icons.album,
+                            color: themeProvider.secondaryTextColor,
+                          ),
                         ),
                       )
                     : Container(
                         color: themeProvider.cardColor,
-                        child: Icon(Icons.album, color: themeProvider.secondaryTextColor),
+                        child: Icon(
+                          Icons.album,
+                          color: themeProvider.secondaryTextColor,
+                        ),
                       ),
               ),
             ),
@@ -627,7 +694,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Widget _buildArtistsList(List<ArtistModel> artists, ThemeProvider themeProvider) {
+  Widget _buildArtistsList(
+    List<ArtistModel> artists,
+    ThemeProvider themeProvider,
+  ) {
     return SliverToBoxAdapter(
       child: SizedBox(
         height: 180,
@@ -650,11 +720,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Widget _buildArtistCard(ArtistModel artist, ThemeProvider themeProvider) {
     return GestureDetector(
       onTap: () {
-        // Navigate to artist detail screen
+        // Navigate to artist DETAIL screen (with tabs for discography)
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ArtistScreen(artist: artist),
+            builder: (_) => ArtistDetailScreen(
+              artist: artist,
+            ), // CHANGED: Use ArtistDetailScreen
           ),
         );
       },
@@ -677,16 +749,28 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         memCacheWidth: 240,
                         placeholder: (_, __) => Container(
                           color: themeProvider.cardColor,
-                          child: Icon(Icons.person, color: themeProvider.secondaryTextColor, size: 48),
+                          child: Icon(
+                            Icons.person,
+                            color: themeProvider.secondaryTextColor,
+                            size: 48,
+                          ),
                         ),
                         errorWidget: (_, __, ___) => Container(
                           color: themeProvider.cardColor,
-                          child: Icon(Icons.person, color: themeProvider.secondaryTextColor, size: 48),
+                          child: Icon(
+                            Icons.person,
+                            color: themeProvider.secondaryTextColor,
+                            size: 48,
+                          ),
                         ),
                       )
                     : Container(
                         color: themeProvider.cardColor,
-                        child: Icon(Icons.person, color: themeProvider.secondaryTextColor, size: 48),
+                        child: Icon(
+                          Icons.person,
+                          color: themeProvider.secondaryTextColor,
+                          size: 48,
+                        ),
                       ),
               ),
             ),
