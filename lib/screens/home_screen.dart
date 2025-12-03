@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   List<AlbumModel> _allRecommendedAlbums = [];
   List<ArtistModel> _allRecommendedArtists = [];
   bool _isLoading = true;
+  bool _hasLoadedOnce = false; // CRITICAL FIX: Prevent reload on rebuild
 
   @override
   bool get wantKeepAlive => true;
@@ -41,7 +42,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
-    _loadPersonalizedData();
+    // CRITICAL FIX: Defer loading until after first frame renders
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasLoadedOnce && mounted) {
+        _hasLoadedOnce = true;
+        _loadPersonalizedData();
+      }
+    });
   }
 
   Future<void> _loadPersonalizedData() async {
@@ -55,10 +62,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       if (isNewUser) {
         // New user: show trending content
         debugPrint('👤 New user detected - showing trending');
+        
+        // CRITICAL FIX: Load in parallel with timeout
         final results = await Future.wait([
-          _apiService.getTrendingSongs(),
-          _apiService.getTrendingAlbums(),
-          _apiService.getTrendingArtists(),
+          _apiService.getTrendingSongs().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <SongModel>[],
+          ),
+          _apiService.getTrendingAlbums().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <AlbumModel>[],
+          ),
+          _apiService.getTrendingArtists().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <ArtistModel>[],
+          ),
         ]);
         
         if (mounted) {
@@ -70,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           });
         }
       } else {
-        // Returning user: show ONLY their favorite artists (NO TRENDING)
+        // Returning user: show ONLY their favorite artists
         debugPrint('✅ Returning user - loading personalized content');
         await _loadUserTasteContent();
       }
@@ -82,19 +100,19 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     }
   }
 
-  /// Load content based ONLY on user's music taste (NO trending)
+  /// Load content based ONLY on user's music taste
   Future<void> _loadUserTasteContent() async {
     try {
-      // Get CACHED personalized queries (no switching!)
-      final queries = await _recommendationService.getPersonalizedQueries(count: 5);
+      // Get CACHED personalized queries
+      final queries = await _recommendationService.getPersonalizedQueries(count: 3); // REDUCED from 5 to 3
       
       if (queries.isEmpty) {
         debugPrint('⚠️ No favorite artists yet - showing trending');
-        // Fallback to trending if user has no history
+        // Fallback to trending
         final results = await Future.wait([
-          _apiService.getTrendingSongs(),
-          _apiService.getTrendingAlbums(),
-          _apiService.getTrendingArtists(),
+          _apiService.getTrendingSongs().timeout(const Duration(seconds: 5), onTimeout: () => <SongModel>[]),
+          _apiService.getTrendingAlbums().timeout(const Duration(seconds: 5), onTimeout: () => <AlbumModel>[]),
+          _apiService.getTrendingArtists().timeout(const Duration(seconds: 5), onTimeout: () => <ArtistModel>[]),
         ]);
         
         if (mounted) {
@@ -108,14 +126,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         return;
       }
 
-      // Load content for user's favorite artists (20-30 items)
+      // CRITICAL FIX: Load in parallel with aggressive timeouts
       final allSongs = <SongModel>[];
       final allAlbums = <AlbumModel>[];
       final allArtists = <ArtistModel>[];
 
-      // Fetch content for favorite artists
-      for (final query in queries) {
-        final results = await Future.wait([
+      // Parallel fetch with timeouts
+      final futures = queries.map((query) async {
+        return await Future.wait([
           _apiService.searchSongs(query).timeout(
             const Duration(seconds: 5),
             onTimeout: () => <SongModel>[],
@@ -129,13 +147,17 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             onTimeout: () => <ArtistModel>[],
           ),
         ]);
+      });
 
-        allSongs.addAll(results[0] as List<SongModel>);
-        allAlbums.addAll(results[1] as List<AlbumModel>);
-        allArtists.addAll(results[2] as List<ArtistModel>);
+      final results = await Future.wait(futures);
+      
+      for (final result in results) {
+        allSongs.addAll(result[0] as List<SongModel>);
+        allAlbums.addAll(result[1] as List<AlbumModel>);
+        allArtists.addAll(result[2] as List<ArtistModel>);
       }
 
-      // Remove duplicates and get 20-30 items
+      // Remove duplicates
       final uniqueSongs = _removeDuplicateSongs(allSongs);
       final uniqueAlbums = _removeDuplicateAlbums(allAlbums);
       final uniqueArtists = _removeDuplicateArtists(allArtists);
@@ -145,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       _allRecommendedAlbums = uniqueAlbums.take(50).toList();
       _allRecommendedArtists = uniqueArtists.take(50).toList();
 
-      // Show only top 7 on home screen (most popular/famous)
+      // Show only top 7 on home screen
       if (mounted) {
         setState(() {
           _recommendedSongs = _allRecommendedSongs.take(7).toList();

@@ -10,8 +10,9 @@ class MiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    
+    // CRITICAL FIX: Listen to theme changes
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     // PERFORMANCE: Use Selector to only rebuild when current song changes
     return Selector<MusicPlayerProvider, String?>(
       selector: (_, player) => player.currentSong?.id,
@@ -27,13 +28,12 @@ class MiniPlayer extends StatelessWidget {
             Navigator.push(
               context,
               PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => const PlayerScreen(),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  );
-                },
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const PlayerScreen(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
                 transitionDuration: const Duration(milliseconds: 250),
               ),
             );
@@ -72,16 +72,27 @@ class MiniPlayer extends StatelessWidget {
                                     fit: BoxFit.cover,
                                     memCacheWidth: 96,
                                     placeholder: (context, url) => Container(
-                                      color: themeProvider.primaryColor.withOpacity(0.1),
+                                      color: themeProvider.primaryColor
+                                          .withOpacity(0.1),
                                     ),
-                                    errorWidget: (context, url, error) => Container(
-                                      color: themeProvider.primaryColor.withOpacity(0.1),
-                                      child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
-                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                          color: themeProvider.primaryColor
+                                              .withOpacity(0.1),
+                                          child: Icon(
+                                            Icons.music_note,
+                                            color: themeProvider
+                                                .secondaryTextColor,
+                                          ),
+                                        ),
                                   )
                                 : Container(
-                                    color: themeProvider.primaryColor.withOpacity(0.1),
-                                    child: Icon(Icons.music_note, color: themeProvider.secondaryTextColor),
+                                    color: themeProvider.primaryColor
+                                        .withOpacity(0.1),
+                                    child: Icon(
+                                      Icons.music_note,
+                                      color: themeProvider.secondaryTextColor,
+                                    ),
                                   ),
                           ),
                         ),
@@ -106,7 +117,10 @@ class MiniPlayer extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               song.artist,
-                              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 12),
+                              style: TextStyle(
+                                color: themeProvider.secondaryTextColor,
+                                fontSize: 12,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -143,10 +157,7 @@ class _MiniPlayerControls extends StatelessWidget {
     final player = Provider.of<MusicPlayerProvider>(context, listen: false);
 
     return Selector<MusicPlayerProvider, Map<String, dynamic>>(
-      selector: (_, p) => {
-        'isPlaying': p.isPlaying,
-        'isLoading': p.isLoading,
-      },
+      selector: (_, p) => {'isPlaying': p.isPlaying, 'isLoading': p.isLoading},
       builder: (context, state, child) {
         final isPlaying = state['isPlaying'] as bool;
         final isLoading = state['isLoading'] as bool;
@@ -155,7 +166,11 @@ class _MiniPlayerControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: Icon(Icons.skip_previous_rounded, size: 28, color: themeProvider.textColor),
+              icon: Icon(
+                Icons.skip_previous_rounded,
+                size: 28,
+                color: themeProvider.textColor,
+              ),
               onPressed: player.playPrevious,
             ),
             Container(
@@ -177,7 +192,9 @@ class _MiniPlayerControls extends StatelessWidget {
                         ),
                       )
                     : Icon(
-                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         size: 28,
                       ),
                 color: Colors.white,
@@ -185,7 +202,11 @@ class _MiniPlayerControls extends StatelessWidget {
               ),
             ),
             IconButton(
-              icon: Icon(Icons.skip_next_rounded, size: 28, color: themeProvider.textColor),
+              icon: Icon(
+                Icons.skip_next_rounded,
+                size: 28,
+                color: themeProvider.textColor,
+              ),
               onPressed: player.playNext,
             ),
           ],
@@ -222,8 +243,12 @@ class _MiniPlayerProgressBar extends StatelessWidget {
                 value: duration.inMilliseconds > 0
                     ? position.inMilliseconds / duration.inMilliseconds
                     : 0,
-                backgroundColor: themeProvider.secondaryTextColor.withOpacity(0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(themeProvider.primaryColor),
+                backgroundColor: themeProvider.secondaryTextColor.withOpacity(
+                  0.2,
+                ),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  themeProvider.primaryColor,
+                ),
                 minHeight: 3,
               ),
             );

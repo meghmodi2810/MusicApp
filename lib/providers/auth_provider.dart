@@ -6,7 +6,7 @@ class AuthProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.instance;
   Map<String, dynamic>? _currentUser;
   Map<String, dynamic>? _userSettings;
-  bool _isLoading = false;
+  bool _isLoading = true; // CRITICAL FIX: Start as true to show loading state
   String? _error;
 
   Map<String, dynamic>? get currentUser => _currentUser;
@@ -18,20 +18,28 @@ class AuthProvider extends ChangeNotifier {
   String get displayName => _currentUser?['display_name'] as String? ?? 'User';
 
   AuthProvider() {
+    // CRITICAL FIX: Don't await - run asynchronously
     _checkLoginStatus();
   }
 
   Future<void> _checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getInt('userId');
-    
-    if (userId != null) {
-      final user = await _db.getUser(userId);
-      if (user != null) {
-        _currentUser = user;
-        await _loadUserSettings();
-        notifyListeners();
+    // CRITICAL FIX: Run in background, don't block constructor
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('userId');
+
+      if (userId != null) {
+        final user = await _db.getUser(userId);
+        if (user != null) {
+          _currentUser = user;
+          await _loadUserSettings();
+        }
       }
+    } catch (e) {
+      debugPrint('Error checking login status: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 

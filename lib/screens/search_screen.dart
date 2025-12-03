@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 import '../models/song_model.dart';
 import '../models/album_model.dart';
@@ -27,12 +28,12 @@ class _SearchScreenState extends State<SearchScreen> {
   final MusicApiService _apiService = MusicApiService();
   final RecommendationService _recommendationService = RecommendationService();
   final FocusNode _focusNode = FocusNode();
-  
+
   List<SongModel> _songs = [];
   List<AlbumModel> _albums = [];
   List<ArtistModel> _artists = [];
   List<String> _recentSearches = [];
-  
+
   bool _isLoading = false;
   bool _hasSearched = false;
   Timer? _debounceTimer;
@@ -56,10 +57,10 @@ class _SearchScreenState extends State<SearchScreen> {
   // Save search to recent searches
   Future<void> _saveRecentSearch(String query) async {
     if (query.trim().isEmpty) return;
-    
+
     final prefs = await SharedPreferences.getInstance();
     final searches = prefs.getStringList('recent_searches') ?? [];
-    
+
     // Remove if already exists
     searches.remove(query);
     // Add to front
@@ -68,7 +69,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (searches.length > 10) {
       searches.removeRange(10, searches.length);
     }
-    
+
     await prefs.setStringList('recent_searches', searches);
     setState(() {
       _recentSearches = searches;
@@ -87,7 +88,7 @@ class _SearchScreenState extends State<SearchScreen> {
   // Debounced search
   void _onSearchChanged(String query) {
     _debounceTimer?.cancel();
-    
+
     if (query.trim().isEmpty) {
       setState(() {
         _songs = [];
@@ -115,26 +116,46 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       // Fetch all three types simultaneously
       final results = await Future.wait([
-        _apiService.searchSongs(query).timeout(const Duration(seconds: 10), onTimeout: () => <SongModel>[]),
-        _apiService.searchAlbums(query).timeout(const Duration(seconds: 10), onTimeout: () => <AlbumModel>[]),
-        _apiService.searchArtists(query).timeout(const Duration(seconds: 10), onTimeout: () => <ArtistModel>[]),
+        _apiService
+            .searchSongs(query)
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () => <SongModel>[],
+            ),
+        _apiService
+            .searchAlbums(query)
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () => <AlbumModel>[],
+            ),
+        _apiService
+            .searchArtists(query)
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () => <ArtistModel>[],
+            ),
       ]);
 
       if (mounted && _searchController.text.trim() == query.trim()) {
         // Sort results by user's music taste
-        final sortedSongs = await _recommendationService.sortSearchResultsByTaste(results[0] as List<SongModel>);
-        final sortedAlbums = await _recommendationService.sortAlbumResultsByTaste(results[1] as List<AlbumModel>);
-        final sortedArtists = await _recommendationService.sortArtistResultsByTaste(results[2] as List<ArtistModel>);
-        
+        final sortedSongs = await _recommendationService
+            .sortSearchResultsByTaste(results[0] as List<SongModel>);
+        final sortedAlbums = await _recommendationService
+            .sortAlbumResultsByTaste(results[1] as List<AlbumModel>);
+        final sortedArtists = await _recommendationService
+            .sortArtistResultsByTaste(results[2] as List<ArtistModel>);
+
         setState(() {
           _songs = sortedSongs;
           _albums = sortedAlbums;
           _artists = sortedArtists;
           _isLoading = false;
         });
-        
-        debugPrint('🎯 Search sorted by taste: ${_songs.take(3).map((s) => s.artist).join(", ")}');
-        
+
+        debugPrint(
+          '🎯 Search sorted by taste: ${_songs.take(3).map((s) => s.artist).join(", ")}',
+        );
+
         // Save to recent searches
         _saveRecentSearch(query);
       }
@@ -170,7 +191,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final secondaryText = themeProvider.secondaryTextColor;
     final cardColor = themeProvider.cardColor;
     final accentColor = themeProvider.primaryColor;
-    
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -231,7 +252,10 @@ class _SearchScreenState extends State<SearchScreen> {
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide(color: accentColor, width: 2),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                   onChanged: _onSearchChanged,
                   textInputAction: TextInputAction.search,
@@ -246,19 +270,34 @@ class _SearchScreenState extends State<SearchScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
-                    _buildFilterChip('Songs', SearchFilter.songs, _songs.length, themeProvider),
+                    _buildFilterChip(
+                      'Songs',
+                      SearchFilter.songs,
+                      _songs.length,
+                      themeProvider,
+                    ),
                     const SizedBox(width: 8),
-                    _buildFilterChip('Albums', SearchFilter.albums, _albums.length, themeProvider),
+                    _buildFilterChip(
+                      'Albums',
+                      SearchFilter.albums,
+                      _albums.length,
+                      themeProvider,
+                    ),
                     const SizedBox(width: 8),
-                    _buildFilterChip('Artists', SearchFilter.artists, _artists.length, themeProvider),
+                    _buildFilterChip(
+                      'Artists',
+                      SearchFilter.artists,
+                      _artists.length,
+                      themeProvider,
+                    ),
                   ],
                 ),
               ),
 
             // Content
             Expanded(
-              child: _hasSearched 
-                  ? _buildSearchResults(themeProvider) 
+              child: _hasSearched
+                  ? _buildSearchResults(themeProvider)
                   : _buildRecentSearches(themeProvider),
             ),
           ],
@@ -267,7 +306,12 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, SearchFilter filter, int count, ThemeProvider themeProvider) {
+  Widget _buildFilterChip(
+    String label,
+    SearchFilter filter,
+    int count,
+    ThemeProvider themeProvider,
+  ) {
     final isSelected = _currentFilter == filter;
     return GestureDetector(
       onTap: () {
@@ -278,10 +322,14 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? themeProvider.primaryColor : themeProvider.cardColor,
+          color: isSelected
+              ? themeProvider.primaryColor
+              : themeProvider.cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? themeProvider.primaryColor : themeProvider.secondaryTextColor.withOpacity(0.3),
+            color: isSelected
+                ? themeProvider.primaryColor
+                : themeProvider.secondaryTextColor.withOpacity(0.3),
             width: 1.5,
           ),
         ),
@@ -300,13 +348,17 @@ class _SearchScreenState extends State<SearchScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.3) : themeProvider.primaryColor.withOpacity(0.2),
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.3)
+                      : themeProvider.primaryColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '$count',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : themeProvider.primaryColor,
+                    color: isSelected
+                        ? Colors.white
+                        : themeProvider.primaryColor,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -325,11 +377,18 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search, size: 64, color: themeProvider.secondaryTextColor),
+            Icon(
+              Icons.search,
+              size: 64,
+              color: themeProvider.secondaryTextColor,
+            ),
             const SizedBox(height: 16),
             Text(
               'Search for songs, albums, or artists',
-              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 16),
+              style: TextStyle(
+                color: themeProvider.secondaryTextColor,
+                fontSize: 16,
+              ),
             ),
           ],
         ),
@@ -369,16 +428,23 @@ class _SearchScreenState extends State<SearchScreen> {
             itemBuilder: (context, index) {
               final search = _recentSearches[index];
               return ListTile(
-                leading: Icon(Icons.history, color: themeProvider.secondaryTextColor),
+                leading: Icon(
+                  Icons.history,
+                  color: themeProvider.secondaryTextColor,
+                ),
                 title: Text(
                   search,
                   style: TextStyle(color: themeProvider.textColor),
                 ),
                 trailing: IconButton(
-                  icon: Icon(Icons.close, color: themeProvider.secondaryTextColor),
+                  icon: Icon(
+                    Icons.close,
+                    color: themeProvider.secondaryTextColor,
+                  ),
                   onPressed: () async {
                     final prefs = await SharedPreferences.getInstance();
-                    final searches = prefs.getStringList('recent_searches') ?? [];
+                    final searches =
+                        prefs.getStringList('recent_searches') ?? [];
                     searches.remove(search);
                     await prefs.setStringList('recent_searches', searches);
                     setState(() {
@@ -418,16 +484,21 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     // Filter based on selected tab
-    final hasResults = (_currentFilter == SearchFilter.songs && _songs.isNotEmpty) ||
-                      (_currentFilter == SearchFilter.albums && _albums.isNotEmpty) ||
-                      (_currentFilter == SearchFilter.artists && _artists.isNotEmpty);
+    final hasResults =
+        (_currentFilter == SearchFilter.songs && _songs.isNotEmpty) ||
+        (_currentFilter == SearchFilter.albums && _albums.isNotEmpty) ||
+        (_currentFilter == SearchFilter.artists && _artists.isNotEmpty);
 
     if (!hasResults) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: themeProvider.secondaryTextColor),
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: themeProvider.secondaryTextColor,
+            ),
             const SizedBox(height: 16),
             Text(
               'No ${_currentFilter.name} found',
@@ -436,7 +507,10 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(height: 8),
             Text(
               'Try a different filter or search term',
-              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 14),
+              style: TextStyle(
+                color: themeProvider.secondaryTextColor,
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -455,8 +529,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSongsList(ThemeProvider themeProvider) {
+    // PERFORMANCE FIX: Use ListView.builder with addAutomaticKeepAlives
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8),
+      physics: const BouncingScrollPhysics(),
+      // CRITICAL PERFORMANCE: Cache extents for smooth scrolling
+      cacheExtent: 500,
+      addAutomaticKeepAlives: false, // Don't keep all items alive
+      addRepaintBoundaries: true, // Isolate repaints
       itemCount: _songs.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -464,22 +544,32 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Text(
               '${_songs.length} songs',
-              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 14),
+              style: TextStyle(
+                color: themeProvider.secondaryTextColor,
+                fontSize: 14,
+              ),
             ),
           );
         }
+        // CRITICAL: Use key for efficient list updates
         return SongTile(
+          key: ValueKey('search_song_${_songs[index - 1].id}'),
           song: _songs[index - 1],
-          playlist: [], // Empty playlist - forces smart autoplay
-          isFromSearch: true, // Mark as search result
+          playlist: [],
+          isFromSearch: true,
         );
       },
     );
   }
 
   Widget _buildAlbumsList(ThemeProvider themeProvider) {
+    // PERFORMANCE FIX: Optimized list rendering
     return ListView.builder(
       padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      cacheExtent: 500,
+      addAutomaticKeepAlives: false,
+      addRepaintBoundaries: true,
       itemCount: _albums.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -487,13 +577,18 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               '${_albums.length} albums',
-              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 14),
+              style: TextStyle(
+                color: themeProvider.secondaryTextColor,
+                fontSize: 14,
+              ),
             ),
           );
         }
         final album = _albums[index - 1];
         return Container(
+          key: ValueKey('album_${album.id}'),
           margin: const EdgeInsets.only(bottom: 12),
+          constraints: const BoxConstraints(maxHeight: 90), // OVERFLOW FIX
           decoration: BoxDecoration(
             color: themeProvider.cardColor,
             borderRadius: BorderRadius.circular(12),
@@ -502,45 +597,56 @@ class _SearchScreenState extends State<SearchScreen> {
             contentPadding: const EdgeInsets.all(8),
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: album.imageUrl != null
-                  ? Image.network(
-                      album.highQualityImage,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 60,
-                        height: 60,
+              child: SizedBox(
+                width: 60,
+                height: 60,
+                child: album.imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: album.imageUrl!,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 120,
+                        placeholder: (_, __) => Container(
+                          color: themeProvider.primaryColor.withOpacity(0.2),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: themeProvider.primaryColor.withOpacity(0.2),
+                          child: Icon(Icons.album, color: themeProvider.primaryColor),
+                        ),
+                      )
+                    : Container(
                         color: themeProvider.primaryColor.withOpacity(0.2),
                         child: Icon(Icons.album, color: themeProvider.primaryColor),
                       ),
-                    )
-                  : Container(
-                      width: 60,
-                      height: 60,
-                      color: themeProvider.primaryColor.withOpacity(0.2),
-                      child: Icon(Icons.album, color: themeProvider.primaryColor),
-                    ),
+              ),
             ),
             title: Text(
               album.name,
-              style: TextStyle(color: themeProvider.textColor, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: themeProvider.textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
               '${album.artist}${album.year != null ? ' • ${album.year}' : ''}',
-              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 12),
+              style: TextStyle(
+                color: themeProvider.secondaryTextColor,
+                fontSize: 12,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            trailing: Icon(Icons.chevron_right, color: themeProvider.secondaryTextColor),
+            trailing: Icon(
+              Icons.chevron_right,
+              color: themeProvider.secondaryTextColor,
+              size: 20,
+            ),
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => AlbumScreen(album: album),
-                ),
+                MaterialPageRoute(builder: (_) => AlbumScreen(album: album)),
               );
             },
           ),
@@ -550,8 +656,13 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildArtistsList(ThemeProvider themeProvider) {
+    // PERFORMANCE FIX: Optimized artist list
     return ListView.builder(
       padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      cacheExtent: 500,
+      addAutomaticKeepAlives: false,
+      addRepaintBoundaries: true,
       itemCount: _artists.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -559,44 +670,81 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               '${_artists.length} artists',
-              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 14),
+              style: TextStyle(
+                color: themeProvider.secondaryTextColor,
+                fontSize: 14,
+              ),
             ),
           );
         }
         final artist = _artists[index - 1];
         return Container(
+          key: ValueKey('artist_${artist.id}'),
           margin: const EdgeInsets.only(bottom: 12),
+          constraints: const BoxConstraints(maxHeight: 90), // OVERFLOW FIX
           decoration: BoxDecoration(
             color: themeProvider.cardColor,
             borderRadius: BorderRadius.circular(12),
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(8),
-            leading: CircleAvatar(
-              radius: 30,
-              backgroundImage: artist.imageUrl != null ? NetworkImage(artist.imageUrl!) : null,
-              backgroundColor: themeProvider.primaryColor.withOpacity(0.2),
-              child: artist.imageUrl == null
-                  ? Icon(Icons.person, color: themeProvider.primaryColor, size: 30)
-                  : null,
+            leading: ClipOval(
+              child: SizedBox(
+                width: 60,
+                height: 60,
+                child: artist.imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: artist.imageUrl!,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 120,
+                        placeholder: (_, __) => Container(
+                          color: themeProvider.primaryColor.withOpacity(0.2),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: themeProvider.primaryColor.withOpacity(0.2),
+                          child: Icon(
+                            Icons.person,
+                            color: themeProvider.primaryColor,
+                            size: 30,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: themeProvider.primaryColor.withOpacity(0.2),
+                        child: Icon(
+                          Icons.person,
+                          color: themeProvider.primaryColor,
+                          size: 30,
+                        ),
+                      ),
+              ),
             ),
             title: Text(
               artist.name,
-              style: TextStyle(color: themeProvider.textColor, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: themeProvider.textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
               'Artist',
-              style: TextStyle(color: themeProvider.secondaryTextColor, fontSize: 12),
+              style: TextStyle(
+                color: themeProvider.secondaryTextColor,
+                fontSize: 12,
+              ),
             ),
-            trailing: Icon(Icons.chevron_right, color: themeProvider.secondaryTextColor),
+            trailing: Icon(
+              Icons.chevron_right,
+              color: themeProvider.secondaryTextColor,
+              size: 20,
+            ),
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => ArtistScreen(artist: artist),
-                ),
+                MaterialPageRoute(builder: (_) => ArtistScreen(artist: artist)),
               );
             },
           ),

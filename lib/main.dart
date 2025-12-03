@@ -15,17 +15,17 @@ import 'widgets/mini_player.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize download service
-  await DownloadService().initialize();
-  
+
+  // CRITICAL FIX: Don't await - run in background
+  DownloadService().initialize();
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  
+
   runApp(const MyApp());
 }
 
@@ -44,7 +44,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProxyProvider<AuthProvider, PlaylistProvider>(
           create: (_) => PlaylistProvider(),
           update: (_, authProvider, playlistProvider) {
-            final userId = authProvider.isLoggedIn && authProvider.currentUser != null
+            final userId =
+                authProvider.isLoggedIn && authProvider.currentUser != null
                 ? authProvider.currentUser!['id'] as int
                 : null;
             playlistProvider?.updateUserId(userId);
@@ -56,24 +57,27 @@ class MyApp extends StatelessWidget {
         builder: (context, themeProvider, settingsProvider, child) {
           // Sync crossfade settings with music player
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+            final player = Provider.of<MusicPlayerProvider>(
+              context,
+              listen: false,
+            );
             player.setCrossfade(
               settingsProvider.crossfadeEnabled,
               settingsProvider.crossfadeDuration,
             );
             player.setVolumeNormalization(settingsProvider.volumeNormalization);
           });
-          
+
           SystemChrome.setSystemUIOverlayStyle(
             SystemUiOverlayStyle(
               statusBarColor: Colors.transparent,
-              statusBarIconBrightness: themeProvider.isDarkMode 
-                  ? Brightness.light 
+              statusBarIconBrightness: themeProvider.isDarkMode
+                  ? Brightness.light
                   : Brightness.dark,
               systemNavigationBarColor: themeProvider.navBarColor,
             ),
           );
-          
+
           return MaterialApp(
             title: 'Pancake Tunes',
             debugShowCheckedModeBanner: false,
@@ -82,6 +86,18 @@ class MyApp extends StatelessWidget {
             themeAnimationDuration: Duration.zero,
             home: Consumer<AuthProvider>(
               builder: (context, authProvider, _) {
+                // CRITICAL FIX: Show loading screen while checking auth
+                if (authProvider.isLoading) {
+                  return Scaffold(
+                    backgroundColor: themeProvider.backgroundColor,
+                    body: Center(
+                      child: CircularProgressIndicator(
+                        color: themeProvider.primaryColor,
+                      ),
+                    ),
+                  );
+                }
+
                 // Show first-time setup if no user exists
                 if (!authProvider.isLoggedIn) {
                   return const FirstTimeSetupScreen();
@@ -130,26 +146,29 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    
+
     return Scaffold(
       extendBody: true,
       body: PageView(
         controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(), // Disable swipe for better performance
-        children: const [
-          HomeScreen(),
-          SearchScreen(),
-          LibraryScreen(),
-        ],
+        physics:
+            const NeverScrollableScrollPhysics(), // Disable swipe for better performance
+        children: const [HomeScreen(), SearchScreen(), LibraryScreen()],
       ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // CRITICAL FIX: Always render MiniPlayer, even if empty
+          // This prevents the column from collapsing
           const MiniPlayer(),
+
+          // CRITICAL FIX: Bottom nav is now ALWAYS visible
           Container(
             decoration: BoxDecoration(
               color: themeProvider.navBarColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: SafeArea(
               top: false,
@@ -158,9 +177,27 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home', themeProvider),
-                    _buildNavItem(1, Icons.search_outlined, Icons.search, 'Search', themeProvider),
-                    _buildNavItem(2, Icons.library_music_outlined, Icons.library_music, 'Library', themeProvider),
+                    _buildNavItem(
+                      0,
+                      Icons.home_outlined,
+                      Icons.home_rounded,
+                      'Home',
+                      themeProvider,
+                    ),
+                    _buildNavItem(
+                      1,
+                      Icons.search_outlined,
+                      Icons.search,
+                      'Search',
+                      themeProvider,
+                    ),
+                    _buildNavItem(
+                      2,
+                      Icons.library_music_outlined,
+                      Icons.library_music,
+                      'Library',
+                      themeProvider,
+                    ),
                   ],
                 ),
               ),
@@ -171,7 +208,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label, ThemeProvider themeProvider) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    ThemeProvider themeProvider,
+  ) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
       onTap: () => _onTabTapped(index),
