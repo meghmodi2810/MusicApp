@@ -6,6 +6,7 @@ import '../providers/music_player_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/recommendation_service.dart';
 import '../screens/player_screen.dart';
 
@@ -32,6 +33,7 @@ class SongTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final settingsProvider = Provider.of<SettingsProvider>(context);
     final cardColor = themeProvider.cardColor;
     final accentColor = themeProvider.primaryColor;
     final textColor = themeProvider.textColor;
@@ -41,7 +43,7 @@ class SongTile extends StatelessWidget {
       builder: (context, player, child) {
         final isPlaying = player.currentSong?.id == song.id;
 
-        return Container(
+        Widget tileContent = Container(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           constraints: const BoxConstraints(maxHeight: 80), // OVERFLOW FIX
           decoration: BoxDecoration(
@@ -188,6 +190,20 @@ class SongTile extends StatelessWidget {
               ),
             ),
             onTap: () {
+              // FIX: If the same song is already playing, just open the player screen
+              if (isPlaying) {
+                debugPrint('🎵 Same song already playing, opening player screen');
+                if (onTap != null) {
+                  onTap!();
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const PlayerScreen()),
+                  );
+                }
+                return;
+              }
+
               // Track song play for recommendations
               final recommendationService = RecommendationService();
               recommendationService.trackSongPlay(song);
@@ -228,6 +244,110 @@ class SongTile extends StatelessWidget {
             },
           ),
         );
+
+        // Wrap with Dismissible if swipe gestures are enabled
+        if (settingsProvider.swipeGesturesEnabled) {
+          return Dismissible(
+            key: Key('song_tile_${song.id}_${DateTime.now().millisecondsSinceEpoch}'),
+            confirmDismiss: (direction) async {
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              final playlistProvider = Provider.of<PlaylistProvider>(context, listen: false);
+              
+              if (direction == DismissDirection.startToEnd) {
+                // Swipe right: Add to liked songs
+                if (!authProvider.isLoggedIn) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Please log in to like songs'),
+                      backgroundColor: themeProvider.primaryColor,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                  return false;
+                }
+                
+                final isLiked = playlistProvider.isSongLikedSync(song.id);
+                playlistProvider.toggleLikeSong(song);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isLiked ? 'Removed from Liked Songs' : 'Added to Liked Songs'),
+                    backgroundColor: isLiked ? Colors.orange : Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                return false; // Don't actually dismiss the item
+              } else if (direction == DismissDirection.endToStart) {
+                // Swipe left: Add to queue
+                final isInQueue = player.isInQueue(song);
+                if (isInQueue) {
+                  player.removeFromQueueBySong(song);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Removed from queue'),
+                      backgroundColor: Colors.orange,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  player.addToQueue(song);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('"${song.title}" added to queue'),
+                      backgroundColor: themeProvider.primaryColor,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+                return false; // Don't actually dismiss the item
+              }
+              return false;
+            },
+            background: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.only(left: 20),
+              child: const Row(
+                children: [
+                  Icon(Icons.favorite, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Like', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            secondaryBackground: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text('Queue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 8),
+                  Icon(Icons.queue_music, color: Colors.white),
+                ],
+              ),
+            ),
+            child: tileContent,
+          );
+        }
+
+        return tileContent;
       },
     );
   }

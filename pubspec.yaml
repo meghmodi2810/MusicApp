@@ -80,6 +80,9 @@ dependencies:
   
   # Permissions for storage access
   permission_handler: ^11.3.1
+  
+  # Network connectivity detection
+  connectivity_plus: ^6.0.5
 
 dev_dependencies:
   flutter_test:

@@ -85,6 +85,21 @@ class PlaybackSettingsScreen extends StatelessWidget {
             ),
           ),
           
+          // Gestures Section
+          _buildSectionHeader('Gestures', secondaryText),
+          _buildSettingsTile(
+            context,
+            icon: Icons.swipe,
+            title: 'Swipe Gestures',
+            subtitle: 'Swipe right to like, swipe left to add to queue',
+            themeProvider: themeProvider,
+            trailing: Switch(
+              value: settingsProvider.swipeGesturesEnabled,
+              onChanged: (value) => settingsProvider.setSwipeGesturesEnabled(value),
+              activeColor: accentColor,
+            ),
+          ),
+          
           const SizedBox(height: 100),
         ],
       ),

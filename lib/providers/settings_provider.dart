@@ -11,6 +11,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _volumeNormalization = false;
   bool _autoplay = true;
   bool _gaplessPlayback = true;
+  bool _swipeGesturesEnabled = true; // NEW: Swipe gestures for like/queue
   
   // Download settings
   String _downloadQuality = 'high';
@@ -31,6 +32,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get volumeNormalization => _volumeNormalization;
   bool get autoplay => _autoplay;
   bool get gaplessPlayback => _gaplessPlayback;
+  bool get swipeGesturesEnabled => _swipeGesturesEnabled; // NEW
   String get downloadQuality => _downloadQuality;
   bool get downloadOverWifiOnly => _downloadOverWifiOnly;
   bool get showGetStarted => _showGetStarted;
@@ -76,6 +78,7 @@ class SettingsProvider extends ChangeNotifier {
     _volumeNormalization = prefs.getBool('volumeNormalization') ?? false;
     _autoplay = prefs.getBool('autoplay') ?? true;
     _gaplessPlayback = prefs.getBool('gaplessPlayback') ?? true;
+    _swipeGesturesEnabled = prefs.getBool('swipeGesturesEnabled') ?? true; // NEW
     _downloadQuality = prefs.getString('downloadQuality') ?? 'high';
     _downloadOverWifiOnly = prefs.getBool('downloadOverWifiOnly') ?? true;
     _showGetStarted = prefs.getBool('showGetStarted') ?? true;
@@ -125,6 +128,14 @@ class SettingsProvider extends ChangeNotifier {
     _gaplessPlayback = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('gaplessPlayback', value);
+    notifyListeners();
+  }
+
+  // NEW: Swipe gestures setting
+  Future<void> setSwipeGesturesEnabled(bool value) async {
+    _swipeGesturesEnabled = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('swipeGesturesEnabled', value);
     notifyListeners();
   }
 

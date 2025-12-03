@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/playlist_provider.dart';
-import 'login_screen.dart';
 import 'settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -205,25 +204,39 @@ class ProfileScreen extends StatelessWidget {
               
               // Login/Logout Button
               if (!authProvider.isLoggedIn)
-                SizedBox(
+                Container(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: themeProvider.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: themeProvider.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 48,
+                        color: themeProvider.secondaryTextColor,
                       ),
-                    ),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'You\'re browsing as a guest',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: themeProvider.textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Create an account to save your playlists and liked songs',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: themeProvider.secondaryTextColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 )
               else
