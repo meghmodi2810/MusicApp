@@ -6,7 +6,12 @@ import '../models/lyrics_model.dart';
 /// Service to fetch synced lyrics from multiple sources
 class LyricsService {
   // Cache for fetched lyrics to avoid repeated API calls
-  static final Map<String, LyricsModel?> _lyricsCache = {};
+  // Only caches successful results, not failures
+  static final Map<String, LyricsModel> _lyricsCache = {};
+  
+  // Track failed lookups with expiry (retry after 5 minutes)
+  static final Map<String, DateTime> _failedLookups = {};
+  static const Duration _failedLookupExpiry = Duration(minutes: 5);
 
   // LRCLIB API - Free synced lyrics API
   static const String _lrclibBaseUrl = 'https://lrclib.net/api';
@@ -19,11 +24,24 @@ class LyricsService {
     required String artist,
     Duration? duration,
   }) async {
-    // Check cache first
     final cacheKey = '${artist.toLowerCase()}_${title.toLowerCase()}';
+    
+    // Check successful cache first
     if (_lyricsCache.containsKey(cacheKey)) {
-      debugPrint('📝 Lyrics cache hit for: $title');
+      debugPrint('✅ Lyrics found in cache for: $title');
       return _lyricsCache[cacheKey];
+    }
+    
+    // Check if we recently failed to find lyrics (avoid repeated failed requests)
+    if (_failedLookups.containsKey(cacheKey)) {
+      final failedTime = _failedLookups[cacheKey]!;
+      if (DateTime.now().difference(failedTime) < _failedLookupExpiry) {
+        debugPrint('⏳ Lyrics lookup skipped (recent failure): $title');
+        return null;
+      } else {
+        // Expired, remove from failed lookups and retry
+        _failedLookups.remove(cacheKey);
+      }
     }
 
     debugPrint('🔍 Fetching lyrics for: $title by $artist');
@@ -58,9 +76,9 @@ class LyricsService {
       return lyrics;
     }
 
-    // Cache negative result to avoid repeated failed requests
-    _lyricsCache[cacheKey] = null;
-    debugPrint('❌ No lyrics found for: $title');
+    // Mark as failed lookup (will retry after expiry)
+    _failedLookups[cacheKey] = DateTime.now();
+    debugPrint('❌ No lyrics found for: $title (will retry in 5 min)');
     return null;
   }
 
@@ -238,7 +256,8 @@ class LyricsService {
   /// Clear the lyrics cache
   void clearCache() {
     _lyricsCache.clear();
-    debugPrint('🗑️ Lyrics cache cleared');
+    _failedLookups.clear();
+    debugPrint('🗑️ Lyrics cache and failed lookups cleared');
   }
 
   /// Pre-fetch lyrics for a song (call when song starts playing)

@@ -24,9 +24,6 @@ class MusicPlayerProvider extends ChangeNotifier {
   // PERFORMANCE OPTIMIZATION: Throttle timer for position updates
   Timer? _positionThrottleTimer;
   Duration _lastEmittedPosition = Duration.zero;
-  static const _positionUpdateInterval = Duration(
-    milliseconds: 500,
-  ); // 2 updates/sec (CRITICAL for performance)
 
   SongModel? _currentSong;
   SongModel? _precachedSong; // Track which song is pre-cached
@@ -105,18 +102,19 @@ class MusicPlayerProvider extends ChangeNotifier {
         config: const AudioServiceConfig(
           androidNotificationChannelId: 'com.pancaketunes.app.channel.audio',
           androidNotificationChannelName: 'Pancake Tunes',
-          androidNotificationOngoing:
-              false, // FIX: Changed to false to work with androidStopForegroundOnPause
+          // Keep notification ongoing and stop foreground on pause for proper background playback
+          androidNotificationOngoing: true,
           androidShowNotificationBadge: true,
           androidStopForegroundOnPause: true,
-          artDownscaleWidth: 200,
-          artDownscaleHeight: 200,
-          fastForwardInterval: const Duration(seconds: 10),
-          rewindInterval: const Duration(seconds: 10),
+          artDownscaleWidth: 300,
+          artDownscaleHeight: 300,
+          fastForwardInterval: Duration(seconds: 10),
+          rewindInterval: Duration(seconds: 10),
         ),
       );
+      debugPrint('✅ Audio service initialized successfully');
     } catch (e) {
-      debugPrint('Error configuring audio session: $e');
+      debugPrint('❌ Error configuring audio session: $e');
     }
 
     _setupPlayerListeners(_audioPlayer);
