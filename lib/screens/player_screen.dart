@@ -10,6 +10,7 @@ import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/song_model.dart';
 import '../services/download_service.dart';
+import '../widgets/synced_lyrics_widget.dart';
 import 'queue_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -36,7 +37,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return Scaffold(
       backgroundColor: themeProvider.backgroundColor,
       body: SafeArea(
-        child: Selector<MusicPlayerProvider, SongModel?>(
+        child: Selector<MusicPlayerProvider, SongModel?>( 
           selector: (_, provider) => provider.currentSong,
           builder: (context, song, child) {
             if (song == null) {
@@ -512,7 +513,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return '$minutes:$seconds';
   }
 
-  // FIXED: Add lyrics sheet method
+  // FIXED: Add lyrics sheet method with synced lyrics
   void _showLyricsSheet(BuildContext context, SongModel song, ThemeProvider themeProvider) {
     showModalBottomSheet(
       context: context,
@@ -522,79 +523,74 @@ class _PlayerScreenState extends State<PlayerScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
+        initialChildSize: 0.75,
         minChildSize: 0.5,
-        maxChildSize: 0.9,
+        maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: themeProvider.secondaryTextColor.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Lyrics',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: themeProvider.textColor,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: themeProvider.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: themeProvider.secondaryTextColor.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                '${song.title} - ${song.artist}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: themeProvider.secondaryTextColor,
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Lyrics',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: themeProvider.textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${song.title} • ${song.artist}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: themeProvider.secondaryTextColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: themeProvider.textColor),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.lyrics_outlined,
-                        size: 64,
-                        color: themeProvider.secondaryTextColor.withOpacity(0.5),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Lyrics not available',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: themeProvider.secondaryTextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Lyrics feature coming soon',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: themeProvider.secondaryTextColor.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              const SizedBox(height: 8),
+              Divider(
+                color: themeProvider.secondaryTextColor.withOpacity(0.1),
+                height: 1,
               ),
-            ),
-          ],
+              // Synced Lyrics Widget
+              Expanded(
+                child: SyncedLyricsWidget(song: song),
+              ),
+            ],
+          ),
         ),
       ),
     );
