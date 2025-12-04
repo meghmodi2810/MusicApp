@@ -93,18 +93,36 @@ class QueueScreen extends StatelessWidget {
               if (queue.isEmpty)
                 SliverToBoxAdapter(child: _buildEmptyQueue(themeProvider))
               else
-                // PERFORMANCE FIX: Use SliverList.builder for optimized rendering
-                SliverList.builder(
-                  itemCount: queue.length,
-                  itemBuilder: (context, index) {
-                    final song = queue[index];
-                    return _QueueItemWidget(
-                      key: ValueKey('queue_${song.id}_$index'),
-                      song: song,
-                      index: index,
-                      themeProvider: themeProvider,
-                    );
-                  },
+                // NEW: Draggable/Reorderable Queue
+                SliverToBoxAdapter(
+                  child: ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: queue.length,
+                    onReorder: (oldIndex, newIndex) {
+                      player.reorderQueue(oldIndex, newIndex);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Queue reordered'),
+                          backgroundColor: themeProvider.primaryColor,
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(milliseconds: 800),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    },
+                    itemBuilder: (context, index) {
+                      final song = queue[index];
+                      return _QueueItemWidget(
+                        key: ValueKey('queue_${song.id}_$index'),
+                        song: song,
+                        index: index,
+                        themeProvider: themeProvider,
+                      );
+                    },
+                  ),
                 ),
 
               // Coming Up From Playlist
@@ -297,70 +315,82 @@ class _QueueItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final player = Provider.of<MusicPlayerProvider>(context, listen: false);
 
-    return Dismissible(
-      key: ValueKey('dismiss_${song.id}_$index'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(Icons.delete, color: Colors.white),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      constraints: const BoxConstraints(maxHeight: 80),
+      decoration: BoxDecoration(
+        color: themeProvider.cardColor,
+        borderRadius: BorderRadius.circular(12),
       ),
-      onDismissed: (_) {
-        player.removeFromQueue(index);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Removed "${song.title}" from queue'),
-            backgroundColor: themeProvider.primaryColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            action: SnackBarAction(
-              label: 'Undo',
-              textColor: Colors.white,
-              onPressed: () {
-                // CRITICAL FIX: Re-add at same position
-                player.addToQueue(song);
-              },
-            ),
+      child: Dismissible(
+        key: ValueKey('dismiss_${song.id}_$index'),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(12),
           ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        constraints: const BoxConstraints(maxHeight: 80), // OVERFLOW FIX
-        decoration: BoxDecoration(
-          color: themeProvider.cardColor,
-          borderRadius: BorderRadius.circular(12),
+          child: const Icon(Icons.delete, color: Colors.white),
         ),
+        onDismissed: (_) {
+          player.removeFromQueue(index);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Removed "${song.title}" from queue'),
+              backgroundColor: themeProvider.primaryColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              action: SnackBarAction(
+                label: 'Undo',
+                textColor: Colors.white,
+                onPressed: () {
+                  player.addToQueue(song);
+                },
+              ),
+            ),
+          );
+        },
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 4,
           ),
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: 50,
-              height: 50,
-              child: song.albumArt != null
-                  ? CachedNetworkImage(
-                      imageUrl: song.albumArt!,
-                      fit: BoxFit.cover,
-                      memCacheWidth: 100,
-                    )
-                  : Container(
-                      color: themeProvider.primaryColor.withOpacity(0.2),
-                      child: Icon(
-                        Icons.music_note,
-                        color: themeProvider.primaryColor,
-                      ),
-                    ),
-            ),
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle icon
+              Icon(
+                Icons.drag_handle,
+                color: themeProvider.secondaryTextColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              // Album art
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: song.albumArt != null
+                      ? CachedNetworkImage(
+                          imageUrl: song.albumArt!,
+                          fit: BoxFit.cover,
+                          memCacheWidth: 100,
+                        )
+                      : Container(
+                          color: themeProvider.primaryColor.withOpacity(0.2),
+                          child: Icon(
+                            Icons.music_note,
+                            color: themeProvider.primaryColor,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
           title: Text(
             song.title,

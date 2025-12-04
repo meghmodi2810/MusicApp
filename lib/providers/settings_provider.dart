@@ -13,12 +13,6 @@ class SettingsProvider extends ChangeNotifier {
   bool _gaplessPlayback = true;
   bool _swipeGesturesEnabled = true; // NEW: Swipe gestures for like/queue
 
-  // NEW: Audio Effects
-  bool _bassBoostEnabled = false;
-  double _bassBoostLevel = 0.5; // 0.0 to 1.0
-  bool _reverbEnabled = false;
-  double _reverbLevel = 0.5; // 0.0 to 1.0
-
   // Download settings
   String _downloadQuality = 'high';
   bool _downloadOverWifiOnly = true;
@@ -43,12 +37,6 @@ class SettingsProvider extends ChangeNotifier {
   bool get autoplay => _autoplay;
   bool get gaplessPlayback => _gaplessPlayback;
   bool get swipeGesturesEnabled => _swipeGesturesEnabled; // NEW
-
-  // NEW: Audio Effects Getters
-  bool get bassBoostEnabled => _bassBoostEnabled;
-  double get bassBoostLevel => _bassBoostLevel;
-  bool get reverbEnabled => _reverbEnabled;
-  double get reverbLevel => _reverbLevel;
 
   String get downloadQuality => _downloadQuality;
   bool get downloadOverWifiOnly => _downloadOverWifiOnly;
@@ -98,12 +86,6 @@ class SettingsProvider extends ChangeNotifier {
     _autoplay = prefs.getBool('autoplay') ?? true;
     _gaplessPlayback = prefs.getBool('gaplessPlayback') ?? true;
     _swipeGesturesEnabled = prefs.getBool('swipeGesturesEnabled') ?? true;
-
-    // NEW: Load audio effects
-    _bassBoostEnabled = prefs.getBool('bassBoostEnabled') ?? false;
-    _bassBoostLevel = prefs.getDouble('bassBoostLevel') ?? 0.5;
-    _reverbEnabled = prefs.getBool('reverbEnabled') ?? false;
-    _reverbLevel = prefs.getDouble('reverbLevel') ?? 0.5;
 
     _downloadQuality = prefs.getString('downloadQuality') ?? 'high';
     _downloadOverWifiOnly = prefs.getBool('downloadOverWifiOnly') ?? true;
@@ -164,38 +146,6 @@ class SettingsProvider extends ChangeNotifier {
     _swipeGesturesEnabled = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('swipeGesturesEnabled', value);
-    notifyListeners();
-  }
-
-  // NEW: Bass boost setting
-  Future<void> setBassBoostEnabled(bool value) async {
-    _bassBoostEnabled = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('bassBoostEnabled', value);
-    notifyListeners();
-  }
-
-  // NEW: Bass boost level setting
-  Future<void> setBassBoostLevel(double level) async {
-    _bassBoostLevel = level.clamp(0.0, 1.0);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('bassBoostLevel', _bassBoostLevel);
-    notifyListeners();
-  }
-
-  // NEW: Reverb setting
-  Future<void> setReverbEnabled(bool value) async {
-    _reverbEnabled = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('reverbEnabled', value);
-    notifyListeners();
-  }
-
-  // NEW: Reverb level setting
-  Future<void> setReverbLevel(double level) async {
-    _reverbLevel = level.clamp(0.0, 1.0);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('reverbLevel', _reverbLevel);
     notifyListeners();
   }
 

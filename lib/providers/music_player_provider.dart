@@ -57,12 +57,6 @@ class MusicPlayerProvider extends ChangeNotifier {
   bool _volumeNormalization = false;
   double _normalizedVolume = 1.0;
 
-  // NEW: Audio Effects using AndroidEqualizer and AndroidLoudnessEnhancer
-  bool _bassBoostEnabled = false;
-  double _bassBoostLevel = 0.5;
-  bool _reverbEnabled = false;
-  double _reverbLevel = 0.5;
-
   // Track if provider is disposed
   bool _isDisposed = false;
 
@@ -90,10 +84,6 @@ class MusicPlayerProvider extends ChangeNotifier {
   int get crossfadeDuration => _crossfadeDuration;
   bool get volumeNormalization => _volumeNormalization;
   CrossfadeCurve get crossfadeCurve => _crossfadeCurve;
-  bool get bassBoostEnabled => _bassBoostEnabled;
-  double get bassBoostLevel => _bassBoostLevel;
-  bool get reverbEnabled => _reverbEnabled;
-  double get reverbLevel => _reverbLevel;
 
   MusicPlayerProvider() {
     _initializePlayer();
@@ -536,13 +526,14 @@ class MusicPlayerProvider extends ChangeNotifier {
 
       // Load the audio file (but don't play)
       try {
-        // FIX: Add preload to start buffering immediately
+        // CRITICAL: Add preload to start buffering immediately
         if (nextSong.isLocal) {
           await newPrecachePlayer.setFilePath(url);
         } else {
           await newPrecachePlayer.setUrl(url);
-          // CRITICAL: Preload the audio to start buffering
+          // CRITICAL: Preload and seek to start for instant playback
           await newPrecachePlayer.load();
+          await newPrecachePlayer.seek(Duration.zero);
         }
       } catch (e) {
         debugPrint('❌ Failed to load precache song: $e');
@@ -556,14 +547,24 @@ class MusicPlayerProvider extends ChangeNotifier {
         return;
       }
 
-      // Set volume to 0 (ready for crossfade)
+      // Set volume to 0 (ready for crossfade or instant playback)
       await newPrecachePlayer.setVolume(0);
+      
+      // CRITICAL: Pre-start playback in paused state for instant resumption
+      // This ensures the decoder is ready and buffered
+      try {
+        await newPrecachePlayer.play();
+        await newPrecachePlayer.pause();
+        await newPrecachePlayer.seek(Duration.zero);
+      } catch (e) {
+        debugPrint('Warning: Could not pre-start player: $e');
+      }
 
       // Store the pre-cached player and song
       _precachePlayer = newPrecachePlayer;
       _precachedSong = nextSong;
 
-      debugPrint('✅ Pre-cached: ${nextSong.title}');
+      debugPrint('✅ Pre-cached, buffered & decoder ready for INSTANT playback: ${nextSong.title}');
     } catch (e) {
       debugPrint('Error pre-caching next song: $e');
       _precachePlayer?.dispose();
@@ -571,6 +572,78 @@ class MusicPlayerProvider extends ChangeNotifier {
       _precachedSong = null;
     } finally {
       _isPrecaching = false;
+    }
+  }
+
+  /// CRITICAL FIX: Play next song using pre-cached player if available (INSTANT playback)
+  Future<void> _playNextSongOptimized(SongModel nextSong) async {
+    try {
+      // Check if we have this song pre-cached
+      if (_precachePlayer != null && _precachedSong?.id == nextSong.id) {
+        debugPrint(
+          '✅ INSTANT GAPLESS playback using pre-cached player: ${nextSong.title}',
+        );
+
+        // Store old player for cleanup
+        final oldPlayer = _audioPlayer;
+
+        // Swap to pre-cached player (already loaded and buffered!)
+        _audioPlayer = _precachePlayer!;
+        _precachePlayer = null;
+        _precachedSong = null;
+
+        // Update state IMMEDIATELY
+        _currentSong = nextSong;
+        _isPrecaching = false;
+
+        // Set correct volume and START PLAYING INSTANTLY (before anything else!)
+        if (_volumeNormalization) {
+          await _audioPlayer.setVolume(_normalizedVolume);
+        } else {
+          await _audioPlayer.setVolume(_volume);
+        }
+        
+        // START PLAYBACK IMMEDIATELY - this is the key for true gapless!
+        await _audioPlayer.play();
+        
+        debugPrint('🚀 TRUE GAPLESS - Song playing NOW!');
+
+        // Cancel subscriptions on old player AFTER starting new playback
+        _cancelPlayerSubscriptions();
+
+        // Setup listeners on new player (after playback started)
+        _setupPlayerListeners(_audioPlayer);
+
+        // Get duration
+        _duration = _audioPlayer.duration ?? Duration.zero;
+        durationNotifier.value = _duration;
+        _position = Duration.zero;
+        positionNotifier.value = Duration.zero;
+
+        // Update notification in background (don't await - don't block!)
+        _audioHandler?.updateSongMediaItem(
+          nextSong.title,
+          nextSong.artist,
+          nextSong.albumArt,
+          _duration,
+        );
+
+        // Dispose old player in background (don't block)
+        _disposeOldPlayer(oldPlayer);
+
+        notifyListeners();
+        return;
+      }
+
+      // Pre-cache not available - fall back to normal loading
+      debugPrint(
+        '⚠️ Pre-cache not available for ${nextSong.title} - loading normally',
+      );
+      await playSong(nextSong);
+    } catch (e) {
+      debugPrint('Error in optimized playback: $e');
+      // Fallback to normal playback
+      await playSong(nextSong);
     }
   }
 
@@ -812,78 +885,6 @@ class MusicPlayerProvider extends ChangeNotifier {
     await _loadSmartRecommendations();
   }
 
-  /// CRITICAL FIX: Play next song using pre-cached player if available (INSTANT playback)
-  Future<void> _playNextSongOptimized(SongModel nextSong) async {
-    try {
-      // Check if we have this song pre-cached
-      if (_precachePlayer != null && _precachedSong?.id == nextSong.id) {
-        debugPrint(
-          '✅ INSTANT playback using pre-cached player: ${nextSong.title}',
-        );
-
-        // Cancel subscriptions on old player
-        _cancelPlayerSubscriptions();
-
-        // Store old player for cleanup
-        final oldPlayer = _audioPlayer;
-
-        // Swap to pre-cached player (already loaded and buffered!)
-        _audioPlayer = _precachePlayer!;
-        _precachePlayer = null;
-        _precachedSong = null;
-
-        // Update state
-        _currentSong = nextSong;
-        _isPrecaching = false;
-
-        // Set correct volume
-        if (_volumeNormalization) {
-          _applyVolumeNormalization();
-        } else {
-          await _audioPlayer.setVolume(_volume);
-        }
-
-        // Setup listeners on new player
-        _setupPlayerListeners(_audioPlayer);
-
-        // Get duration
-        _duration = _audioPlayer.duration ?? Duration.zero;
-        durationNotifier.value = _duration;
-        _position = Duration.zero;
-        positionNotifier.value = Duration.zero;
-
-        // Update notification
-        await _audioHandler?.updateSongMediaItem(
-          nextSong.title,
-          nextSong.artist,
-          nextSong.albumArt,
-          _duration,
-        );
-
-        // Start playing (already buffered - INSTANT!)
-        await _audioPlayer.play();
-
-        debugPrint('🚀 Playing pre-cached song - NO LOADING TIME!');
-
-        // Dispose old player in background
-        _disposeOldPlayer(oldPlayer);
-
-        notifyListeners();
-        return;
-      }
-
-      // Pre-cache not available - fall back to normal loading
-      debugPrint(
-        '⚠️ Pre-cache not available for ${nextSong.title} - loading normally',
-      );
-      await playSong(nextSong);
-    } catch (e) {
-      debugPrint('Error in optimized playback: $e');
-      // Fallback to normal playback
-      await playSong(nextSong);
-    }
-  }
-
   // Load recommendations based on current song's artist (FAST version)
   Future<void> _loadSmartRecommendations() async {
     if (_currentSong == null) return;
@@ -1069,50 +1070,6 @@ class MusicPlayerProvider extends ChangeNotifier {
       _audioPlayer.setVolume(_volume);
     }
     notifyListeners();
-  }
-
-  // NEW: Configure bass boost
-  Future<void> setBassBoost(bool enabled, double level) async {
-    _bassBoostEnabled = enabled;
-    _bassBoostLevel = level.clamp(0.0, 1.0);
-    await _applyAudioEffects();
-    notifyListeners();
-  }
-
-  // NEW: Configure reverb
-  Future<void> setReverb(bool enabled, double level) async {
-    _reverbEnabled = enabled;
-    _reverbLevel = level.clamp(0.0, 1.0);
-    await _applyAudioEffects();
-    notifyListeners();
-  }
-
-  // NEW: Apply audio effects using AndroidEqualizer
-  Future<void> _applyAudioEffects() async {
-    try {
-      if (_bassBoostEnabled || _reverbEnabled) {
-        // Bass boost: Boost low frequencies (60-230 Hz)
-        // Reverb: Simulate room acoustics with delay
-        
-        // just_audio has built-in support for audio effects on Android
-        // We'll use setSpeed and setPitch for basic effects simulation
-        
-        if (_bassBoostEnabled) {
-          // Bass boost simulation: slightly reduce speed to emphasize low frequencies
-          final speedAdjust = 1.0 - (_bassBoostLevel * 0.05);
-          await _audioPlayer.setSpeed(speedAdjust);
-          debugPrint('🎵 Bass boost enabled: level ${(_bassBoostLevel * 100).round()}%');
-        }
-        
-        // Note: For true bass boost and reverb, you'd need platform-specific plugins
-        // like just_audio_background with audio effects or a separate audio processor
-      } else {
-        // Reset to normal
-        await _audioPlayer.setSpeed(1.0);
-      }
-    } catch (e) {
-      debugPrint('Error applying audio effects: $e');
-    }
   }
 
   void _applyVolumeNormalization() {
