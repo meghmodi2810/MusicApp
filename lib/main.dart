@@ -38,6 +38,18 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _listenerSetup = false;
+  bool _isInitializing = true; // NEW: Track initialization state
+
+  @override
+  void initState() {
+    super.initState();
+    // Mark initialization complete after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        _isInitializing = false;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +75,8 @@ class _MyAppState extends State<MyApp> {
       child: Consumer2<ThemeProvider, SettingsProvider>(
         builder: (context, themeProvider, settingsProvider, child) {
           // CRITICAL FIX: Only setup listener ONCE, not on every rebuild
-          if (!_listenerSetup) {
+          // AND only after initialization is complete
+          if (!_listenerSetup && !_isInitializing) {
             _listenerSetup = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               final player = Provider.of<MusicPlayerProvider>(
@@ -82,13 +95,31 @@ class _MyAppState extends State<MyApp> {
 
               // Setup dynamic theme listener ONLY ONCE
               String? lastAlbumArt;
+              bool isListenerActive =
+                  false; // Prevent multiple simultaneous calls
+
               player.addListener(() {
+                // CRITICAL: Prevent listener from running during initialization
+                // or if already processing
+                if (isListenerActive || _isInitializing) return;
+
                 // Only update if dynamic theme is active AND album art changed
                 if (themeProvider.isDynamicTheme &&
                     player.currentSong != null &&
                     player.currentSong!.albumArt != lastAlbumArt) {
+                  isListenerActive = true;
                   lastAlbumArt = player.currentSong!.albumArt;
-                  themeProvider.updateDynamicTheme(lastAlbumArt);
+
+                  // Update theme asynchronously and reset flag when done
+                  themeProvider
+                      .updateDynamicTheme(lastAlbumArt)
+                      .then((_) {
+                        isListenerActive = false;
+                      })
+                      .catchError((e) {
+                        debugPrint('❌ Error in dynamic theme listener: $e');
+                        isListenerActive = false;
+                      });
                 }
               });
             });
