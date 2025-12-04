@@ -531,9 +531,6 @@ class MusicPlayerProvider extends ChangeNotifier {
           await newPrecachePlayer.setFilePath(url);
         } else {
           await newPrecachePlayer.setUrl(url);
-          // CRITICAL: Preload and seek to start for instant playback
-          await newPrecachePlayer.load();
-          await newPrecachePlayer.seek(Duration.zero);
         }
       } catch (e) {
         debugPrint('❌ Failed to load precache song: $e');
@@ -547,24 +544,16 @@ class MusicPlayerProvider extends ChangeNotifier {
         return;
       }
 
-      // Set volume to 0 (ready for crossfade or instant playback)
+      // Set volume to 0 (ready for instant playback)
       await newPrecachePlayer.setVolume(0);
-      
-      // CRITICAL: Pre-start playback in paused state for instant resumption
-      // This ensures the decoder is ready and buffered
-      try {
-        await newPrecachePlayer.play();
-        await newPrecachePlayer.pause();
-        await newPrecachePlayer.seek(Duration.zero);
-      } catch (e) {
-        debugPrint('Warning: Could not pre-start player: $e');
-      }
 
       // Store the pre-cached player and song
       _precachePlayer = newPrecachePlayer;
       _precachedSong = nextSong;
 
-      debugPrint('✅ Pre-cached, buffered & decoder ready for INSTANT playback: ${nextSong.title}');
+      debugPrint(
+        '✅ Pre-cached, buffered & ready for INSTANT gapless playback: ${nextSong.title}',
+      );
     } catch (e) {
       debugPrint('Error pre-caching next song: $e');
       _precachePlayer?.dispose();
@@ -596,22 +585,19 @@ class MusicPlayerProvider extends ChangeNotifier {
         _currentSong = nextSong;
         _isPrecaching = false;
 
-        // Set correct volume and START PLAYING INSTANTLY (before anything else!)
-        if (_volumeNormalization) {
-          await _audioPlayer.setVolume(_normalizedVolume);
-        } else {
-          await _audioPlayer.setVolume(_volume);
-        }
+        // CRITICAL: Set volume to playing level and start IMMEDIATELY
+        final targetVolume = _volumeNormalization ? _normalizedVolume : _volume;
         
-        // START PLAYBACK IMMEDIATELY - this is the key for true gapless!
-        await _audioPlayer.play();
+        // Use a single atomic operation - set volume and play together
+        await Future.wait([
+          _audioPlayer.setVolume(targetVolume),
+          _audioPlayer.play(),
+        ]);
         
-        debugPrint('🚀 TRUE GAPLESS - Song playing NOW!');
+        debugPrint('🚀 TRUE GAPLESS - Audio decoder already initialized, playing instantly!');
 
-        // Cancel subscriptions on old player AFTER starting new playback
+        // NOW setup listeners and update UI (after audio is already playing)
         _cancelPlayerSubscriptions();
-
-        // Setup listeners on new player (after playback started)
         _setupPlayerListeners(_audioPlayer);
 
         // Get duration
@@ -620,7 +606,7 @@ class MusicPlayerProvider extends ChangeNotifier {
         _position = Duration.zero;
         positionNotifier.value = Duration.zero;
 
-        // Update notification in background (don't await - don't block!)
+        // Update notification in background (don't block!)
         _audioHandler?.updateSongMediaItem(
           nextSong.title,
           nextSong.artist,

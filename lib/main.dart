@@ -29,8 +29,15 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _listenerSetup = false;
 
   @override
   Widget build(BuildContext context) {
@@ -55,18 +62,37 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer2<ThemeProvider, SettingsProvider>(
         builder: (context, themeProvider, settingsProvider, child) {
-          // Sync crossfade settings with music player
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final player = Provider.of<MusicPlayerProvider>(
-              context,
-              listen: false,
-            );
-            player.setCrossfade(
-              settingsProvider.crossfadeEnabled,
-              settingsProvider.crossfadeDuration,
-            );
-            player.setVolumeNormalization(settingsProvider.volumeNormalization);
-          });
+          // CRITICAL FIX: Only setup listener ONCE, not on every rebuild
+          if (!_listenerSetup) {
+            _listenerSetup = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final player = Provider.of<MusicPlayerProvider>(
+                context,
+                listen: false,
+              );
+
+              // Sync crossfade settings
+              player.setCrossfade(
+                settingsProvider.crossfadeEnabled,
+                settingsProvider.crossfadeDuration,
+              );
+              player.setVolumeNormalization(
+                settingsProvider.volumeNormalization,
+              );
+
+              // Setup dynamic theme listener ONLY ONCE
+              String? lastAlbumArt;
+              player.addListener(() {
+                // Only update if dynamic theme is active AND album art changed
+                if (themeProvider.isDynamicTheme &&
+                    player.currentSong != null &&
+                    player.currentSong!.albumArt != lastAlbumArt) {
+                  lastAlbumArt = player.currentSong!.albumArt;
+                  themeProvider.updateDynamicTheme(lastAlbumArt);
+                }
+              });
+            });
+          }
 
           SystemChrome.setSystemUIOverlayStyle(
             SystemUiOverlayStyle(

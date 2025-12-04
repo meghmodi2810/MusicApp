@@ -23,25 +23,41 @@ class SongCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final downloadService = Provider.of<DownloadService>(context);
+    final playerProvider = Provider.of<MusicPlayerProvider>(context);
     final cardColor = themeProvider.cardColor;
     final accentColor = themeProvider.primaryColor;
     final textColor = themeProvider.textColor;
     final secondaryText = themeProvider.secondaryTextColor;
-    
+
     final isDownloaded = downloadService.isDownloaded(song.id);
     final isDownloading = downloadService.isDownloading(song.id);
     final downloadProgress = downloadService.getProgress(song.id);
-    
+
+    // Check if this song is currently playing
+    final isCurrentlyPlaying = playerProvider.currentSong?.id == song.id;
+
     return GestureDetector(
       onTap: () {
-        context.read<MusicPlayerProvider>().playSong(song, playlist: playlist);
-        // Use simple MaterialPageRoute instead of custom transitions
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PlayerScreen()),
-        );
+        // If the song is already playing, just open the player instead of restarting
+        if (isCurrentlyPlaying) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PlayerScreen()),
+          );
+        } else {
+          // Play the song and open player
+          context.read<MusicPlayerProvider>().playSong(
+            song,
+            playlist: playlist,
+          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PlayerScreen()),
+          );
+        }
       },
-      onLongPress: () => _showSongOptions(context, themeProvider, downloadService),
+      onLongPress: () =>
+          _showSongOptions(context, themeProvider, downloadService),
       child: SizedBox(
         width: 150,
         child: Column(
@@ -169,10 +185,7 @@ class SongCard extends StatelessWidget {
             // Artist Name
             Text(
               song.artist,
-              style: TextStyle(
-                color: secondaryText,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: secondaryText, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -182,11 +195,18 @@ class SongCard extends StatelessWidget {
     );
   }
 
-  void _showSongOptions(BuildContext context, ThemeProvider themeProvider, DownloadService downloadService) {
+  void _showSongOptions(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    DownloadService downloadService,
+  ) {
     final isDownloaded = downloadService.isDownloaded(song.id);
     final isDownloading = downloadService.isDownloading(song.id);
-    final playerProvider = Provider.of<MusicPlayerProvider>(context, listen: false);
-    
+    final playerProvider = Provider.of<MusicPlayerProvider>(
+      context,
+      listen: false,
+    );
+
     showModalBottomSheet(
       context: context,
       backgroundColor: themeProvider.cardColor,
@@ -225,7 +245,10 @@ class SongCard extends StatelessWidget {
                           width: 60,
                           height: 60,
                           color: themeProvider.primaryColor.withOpacity(0.2),
-                          child: Icon(Icons.music_note, color: themeProvider.primaryColor),
+                          child: Icon(
+                            Icons.music_note,
+                            color: themeProvider.primaryColor,
+                          ),
                         ),
                 ),
                 const SizedBox(width: 16),
@@ -261,16 +284,28 @@ class SongCard extends StatelessWidget {
           const SizedBox(height: 16),
           // Options
           ListTile(
-            leading: Icon(Icons.play_circle_outline, color: themeProvider.primaryColor),
-            title: Text('Play Now', style: TextStyle(color: themeProvider.textColor)),
+            leading: Icon(
+              Icons.play_circle_outline,
+              color: themeProvider.primaryColor,
+            ),
+            title: Text(
+              'Play Now',
+              style: TextStyle(color: themeProvider.textColor),
+            ),
             onTap: () {
               Navigator.pop(context);
               playerProvider.playSong(song, playlist: playlist);
             },
           ),
           ListTile(
-            leading: Icon(Icons.playlist_add, color: themeProvider.primaryColor),
-            title: Text('Add to Queue', style: TextStyle(color: themeProvider.textColor)),
+            leading: Icon(
+              Icons.playlist_add,
+              color: themeProvider.primaryColor,
+            ),
+            title: Text(
+              'Add to Queue',
+              style: TextStyle(color: themeProvider.textColor),
+            ),
             onTap: () {
               Navigator.pop(context);
               playerProvider.addToQueue(song);
@@ -285,8 +320,14 @@ class SongCard extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: Icon(Icons.queue_play_next, color: themeProvider.primaryColor),
-            title: Text('Play Next', style: TextStyle(color: themeProvider.textColor)),
+            leading: Icon(
+              Icons.queue_play_next,
+              color: themeProvider.primaryColor,
+            ),
+            title: Text(
+              'Play Next',
+              style: TextStyle(color: themeProvider.textColor),
+            ),
             onTap: () {
               Navigator.pop(context);
               playerProvider.addToQueueNext(song);
@@ -303,16 +344,26 @@ class SongCard extends StatelessWidget {
           // Download option
           if (!isDownloaded && !isDownloading)
             ListTile(
-              leading: Icon(Icons.download_outlined, color: themeProvider.primaryColor),
-              title: Text('Download', style: TextStyle(color: themeProvider.textColor)),
+              leading: Icon(
+                Icons.download_outlined,
+                color: themeProvider.primaryColor,
+              ),
+              title: Text(
+                'Download',
+                style: TextStyle(color: themeProvider.textColor),
+              ),
               onTap: () async {
                 Navigator.pop(context);
                 final success = await downloadService.downloadSong(song);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(success ? 'Download started' : 'Download failed'),
-                      backgroundColor: success ? themeProvider.primaryColor : Colors.red,
+                      content: Text(
+                        success ? 'Download started' : 'Download failed',
+                      ),
+                      backgroundColor: success
+                          ? themeProvider.primaryColor
+                          : Colors.red,
                       behavior: SnackBarBehavior.floating,
                       duration: const Duration(seconds: 1),
                     ),
@@ -323,7 +374,10 @@ class SongCard extends StatelessWidget {
           if (isDownloading)
             ListTile(
               leading: const Icon(Icons.cancel_outlined, color: Colors.red),
-              title: Text('Cancel Download', style: TextStyle(color: themeProvider.textColor)),
+              title: Text(
+                'Cancel Download',
+                style: TextStyle(color: themeProvider.textColor),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 downloadService.cancelDownload(song.id);
@@ -332,7 +386,10 @@ class SongCard extends StatelessWidget {
           if (isDownloaded)
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: Text('Remove Download', style: TextStyle(color: themeProvider.textColor)),
+              title: Text(
+                'Remove Download',
+                style: TextStyle(color: themeProvider.textColor),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 downloadService.deleteDownload(song.id);

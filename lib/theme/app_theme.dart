@@ -7,12 +7,14 @@ enum AppColorScheme {
   softPink,
   mintGreen,
   lavender,
+  dynamicLight, // NEW: Dynamic theme based on album art
   // Dark themes
   amoledBlack,
   darkLavender,
   darkPink,
   darkYellow,
   darkMintGreen,
+  dynamicDark, // NEW: Dynamic dark theme based on album art
 }
 
 class AppTheme {
@@ -116,6 +118,10 @@ class AppTheme {
         return darkYellowBg;
       case AppColorScheme.darkMintGreen:
         return darkMintGreenBg;
+      case AppColorScheme.dynamicLight:
+        return Colors.white; // Default, will be overridden
+      case AppColorScheme.dynamicDark:
+        return Colors.black; // Default, will be overridden
     }
   }
 
@@ -139,6 +145,10 @@ class AppTheme {
         return darkYellowAccent;
       case AppColorScheme.darkMintGreen:
         return darkMintGreenAccent;
+      case AppColorScheme.dynamicLight:
+        return const Color(0xFFFF6B6B); // Default, will be overridden
+      case AppColorScheme.dynamicDark:
+        return const Color(0xFFFF6B6B); // Default, will be overridden
     }
   }
 
@@ -162,6 +172,10 @@ class AppTheme {
         return darkYellowCard;
       case AppColorScheme.darkMintGreen:
         return darkMintGreenCard;
+      case AppColorScheme.dynamicLight:
+        return const Color(0xFFF5F5F5); // Default, will be overridden
+      case AppColorScheme.dynamicDark:
+        return const Color(0xFF1A1A1A); // Default, will be overridden
     }
   }
 
@@ -185,6 +199,10 @@ class AppTheme {
         return darkYellowText;
       case AppColorScheme.darkMintGreen:
         return darkMintGreenText;
+      case AppColorScheme.dynamicLight:
+        return const Color(0xFF212121); // Default, will be overridden
+      case AppColorScheme.dynamicDark:
+        return Colors.white; // Default, will be overridden
     }
   }
 
@@ -208,6 +226,10 @@ class AppTheme {
         return darkYellowText.withOpacity(0.7);
       case AppColorScheme.darkMintGreen:
         return darkMintGreenText.withOpacity(0.7);
+      case AppColorScheme.dynamicLight:
+        return const Color(0xFF757575); // Default, will be overridden
+      case AppColorScheme.dynamicDark:
+        return Colors.white70; // Default, will be overridden
     }
   }
 
@@ -231,6 +253,10 @@ class AppTheme {
         return darkYellowCard;
       case AppColorScheme.darkMintGreen:
         return darkMintGreenCard;
+      case AppColorScheme.dynamicLight:
+        return const Color(0xFFE0E0E0); // Default, will be overridden
+      case AppColorScheme.dynamicDark:
+        return const Color(0xFF1A1A1A); // Default, will be overridden
     }
   }
 
@@ -239,7 +265,8 @@ class AppTheme {
         scheme == AppColorScheme.darkLavender ||
         scheme == AppColorScheme.darkPink ||
         scheme == AppColorScheme.darkYellow ||
-        scheme == AppColorScheme.darkMintGreen;
+        scheme == AppColorScheme.darkMintGreen ||
+        scheme == AppColorScheme.dynamicDark;
   }
 
   static String getSchemeName(AppColorScheme scheme) {
@@ -262,6 +289,10 @@ class AppTheme {
         return 'Dark Yellow';
       case AppColorScheme.darkMintGreen:
         return 'Dark Mint Green';
+      case AppColorScheme.dynamicLight:
+        return 'Dynamic Light';
+      case AppColorScheme.dynamicDark:
+        return 'Dynamic Dark';
     }
   }
 

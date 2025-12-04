@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/music_player_provider.dart';
 import '../theme/app_theme.dart';
 
 class AppearanceSettingsScreen extends StatelessWidget {
@@ -102,6 +103,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
       AppColorScheme.softPink,
       AppColorScheme.mintGreen,
       AppColorScheme.lavender,
+      AppColorScheme.dynamicLight, // NEW: Dynamic Light theme
     ];
 
     final darkThemes = [
@@ -110,6 +112,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
       AppColorScheme.darkPink,
       AppColorScheme.darkYellow,
       AppColorScheme.darkMintGreen,
+      AppColorScheme.dynamicDark, // NEW: Dynamic Dark theme
     ];
 
     return Container(
@@ -145,7 +148,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: lightThemes.map((scheme) {
-              return _buildThemeOption(scheme, themeProvider);
+              return _buildThemeOption(context, scheme, themeProvider);
             }).toList(),
           ),
 
@@ -165,7 +168,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: darkThemes.map((scheme) {
-              return _buildThemeOption(scheme, themeProvider);
+              return _buildThemeOption(context, scheme, themeProvider);
             }).toList(),
           ),
         ],
@@ -173,13 +176,29 @@ class AppearanceSettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildThemeOption(AppColorScheme scheme, ThemeProvider themeProvider) {
+  Widget _buildThemeOption(
+    BuildContext context, // ADD context parameter
+    AppColorScheme scheme,
+    ThemeProvider themeProvider,
+  ) {
     final isSelected = themeProvider.colorScheme == scheme;
     final previewColor = _getAdjustedPreviewColor(scheme, themeProvider);
     final schemeName = themeProvider.getSchemeName(scheme);
+    final isDynamic =
+        scheme == AppColorScheme.dynamicLight ||
+        scheme == AppColorScheme.dynamicDark;
 
     return GestureDetector(
-      onTap: () => themeProvider.setColorScheme(scheme),
+      onTap: () {
+        // CRITICAL FIX: Pass current album art when switching to/between dynamic themes
+        final playerProvider = Provider.of<MusicPlayerProvider>(
+          context,
+          listen: false,
+        );
+        final currentAlbumArt = playerProvider.currentSong?.albumArt;
+
+        themeProvider.setColorScheme(scheme, currentAlbumArt: currentAlbumArt);
+      },
       child: Column(
         children: [
           AnimatedContainer(
@@ -187,7 +206,22 @@ class AppearanceSettingsScreen extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: previewColor,
+              // Dynamic themes get a gradient preview
+              gradient: isDynamic
+                  ? LinearGradient(
+                      colors: [
+                        scheme == AppColorScheme.dynamicLight
+                            ? Colors.blue
+                            : Colors.purple,
+                        scheme == AppColorScheme.dynamicLight
+                            ? Colors.pink
+                            : Colors.blue,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: isDynamic ? null : previewColor,
               borderRadius: BorderRadius.circular(16),
               border: isSelected
                   ? Border.all(color: themeProvider.primaryColor, width: 3)
@@ -195,7 +229,9 @@ class AppearanceSettingsScreen extends StatelessWidget {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: previewColor.withOpacity(0.5),
+                        color: isDynamic
+                            ? themeProvider.primaryColor.withOpacity(0.5)
+                            : previewColor.withOpacity(0.5),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -205,10 +241,18 @@ class AppearanceSettingsScreen extends StatelessWidget {
             child: isSelected
                 ? Icon(
                     Icons.check,
-                    color: AppTheme.getTextColor(scheme),
+                    color: isDynamic
+                        ? Colors.white
+                        : AppTheme.getTextColor(scheme),
                     size: 24,
                   )
-                : null,
+                : (isDynamic
+                      ? Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white.withOpacity(0.8),
+                          size: 24,
+                        )
+                      : null),
           ),
           const SizedBox(height: 8),
           SizedBox(
@@ -251,6 +295,10 @@ class AppearanceSettingsScreen extends StatelessWidget {
         return Color.lerp(baseColor, AppTheme.darkYellowAccent, 0.18)!;
       case AppColorScheme.darkMintGreen:
         return Color.lerp(baseColor, AppTheme.darkMintGreenAccent, 0.20)!;
+      case AppColorScheme.dynamicLight:
+        return Colors.blue; // Will show gradient instead
+      case AppColorScheme.dynamicDark:
+        return Colors.purple; // Will show gradient instead
       default:
         return baseColor;
     }
