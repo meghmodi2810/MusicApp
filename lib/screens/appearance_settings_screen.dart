@@ -18,10 +18,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Appearance',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
         ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
@@ -34,26 +31,33 @@ class AppearanceSettingsScreen extends StatelessWidget {
           // Color Theme Section
           _buildSectionHeader('Color Theme', secondaryText),
           _buildColorSchemeSelector(context, themeProvider),
-          
+
           const SizedBox(height: 24),
-          
+
           // Interface Settings
           _buildSectionHeader('Interface', secondaryText),
           _buildSettingsTile(
             context,
             icon: Icons.show_chart,
             title: 'Progress Bar Style',
-            subtitle: _getProgressBarStyleName(settingsProvider.progressBarStyle),
+            subtitle: _getProgressBarStyleName(
+              settingsProvider.progressBarStyle,
+            ),
             themeProvider: themeProvider,
-            onTap: () => _showProgressBarStyleDialog(context, themeProvider, settingsProvider),
+            onTap: () => _showProgressBarStyleDialog(
+              context,
+              themeProvider,
+              settingsProvider,
+            ),
           ),
           _buildSettingsTile(
             context,
             icon: Icons.text_fields,
             title: 'Font Size',
-            subtitle: 'Standard',
+            subtitle: _getFontSizeName(settingsProvider.fontSize),
             themeProvider: themeProvider,
-            onTap: () => _showFontSizeDialog(context, themeProvider),
+            onTap: () =>
+                _showFontSizeDialog(context, themeProvider, settingsProvider),
           ),
           _buildSettingsTile(
             context,
@@ -62,12 +66,13 @@ class AppearanceSettingsScreen extends StatelessWidget {
             subtitle: 'Compact view for album covers',
             themeProvider: themeProvider,
             trailing: Switch(
-              value: false,
-              onChanged: (value) {},
+              value: settingsProvider.gridLayoutEnabled,
+              onChanged: (value) =>
+                  settingsProvider.setGridLayoutEnabled(value),
               activeColor: themeProvider.primaryColor,
             ),
           ),
-          
+
           const SizedBox(height: 100),
         ],
       ),
@@ -88,14 +93,17 @@ class AppearanceSettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildColorSchemeSelector(BuildContext context, ThemeProvider themeProvider) {
+  Widget _buildColorSchemeSelector(
+    BuildContext context,
+    ThemeProvider themeProvider,
+  ) {
     final lightThemes = [
       AppColorScheme.warmYellow,
       AppColorScheme.softPink,
       AppColorScheme.mintGreen,
       AppColorScheme.lavender,
     ];
-    
+
     final darkThemes = [
       AppColorScheme.amoledBlack,
       AppColorScheme.darkLavender,
@@ -122,7 +130,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           Text(
             'LIGHT THEMES',
             style: TextStyle(
@@ -140,9 +148,9 @@ class AppearanceSettingsScreen extends StatelessWidget {
               return _buildThemeOption(scheme, themeProvider);
             }).toList(),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           Text(
             'DARK THEMES',
             style: TextStyle(
@@ -169,7 +177,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
     final isSelected = themeProvider.colorScheme == scheme;
     final previewColor = themeProvider.getSchemePreviewColor(scheme);
     final schemeName = themeProvider.getSchemeName(scheme);
-    
+
     return GestureDetector(
       onTap: () => themeProvider.setColorScheme(scheme),
       child: Column(
@@ -195,7 +203,11 @@ class AppearanceSettingsScreen extends StatelessWidget {
                   : null,
             ),
             child: isSelected
-                ? Icon(Icons.check, color: AppTheme.getTextColor(scheme), size: 24)
+                ? Icon(
+                    Icons.check,
+                    color: AppTheme.getTextColor(scheme),
+                    size: 24,
+                  )
                 : null,
           ),
           const SizedBox(height: 8),
@@ -206,7 +218,9 @@ class AppearanceSettingsScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: isSelected ? themeProvider.primaryColor : themeProvider.secondaryTextColor,
+                color: isSelected
+                    ? themeProvider.primaryColor
+                    : themeProvider.secondaryTextColor,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
               maxLines: 2,
@@ -241,11 +255,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
             color: themeProvider.primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            icon,
-            color: themeProvider.primaryColor,
-            size: 22,
-          ),
+          child: Icon(icon, color: themeProvider.primaryColor, size: 22),
         ),
         title: Text(
           title,
@@ -263,15 +273,24 @@ class AppearanceSettingsScreen extends StatelessWidget {
                 ),
               )
             : null,
-        trailing: trailing ?? (onTap != null 
-            ? Icon(Icons.chevron_right, color: themeProvider.secondaryTextColor)
-            : null),
+        trailing:
+            trailing ??
+            (onTap != null
+                ? Icon(
+                    Icons.chevron_right,
+                    color: themeProvider.secondaryTextColor,
+                  )
+                : null),
         onTap: onTap,
       ),
     );
   }
 
-  void _showFontSizeDialog(BuildContext context, ThemeProvider themeProvider) {
+  void _showFontSizeDialog(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    SettingsProvider settingsProvider,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: themeProvider.cardColor,
@@ -301,28 +320,35 @@ class AppearanceSettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           ...[
-            ('Small', Icons.check),
-            ('Standard', Icons.check),
-            ('Large', null),
-          ].map((size) => ListTile(
-            title: Text(
-              size.$1,
-              style: TextStyle(color: themeProvider.textColor),
+            ('small', 'Small'),
+            ('standard', 'Standard'),
+            ('large', 'Large'),
+          ].map(
+            (size) => ListTile(
+              title: Text(
+                size.$2,
+                style: TextStyle(color: themeProvider.textColor),
+              ),
+              trailing: settingsProvider.fontSize == size.$1
+                  ? Icon(Icons.check, color: themeProvider.primaryColor)
+                  : null,
+              onTap: () {
+                settingsProvider.setFontSize(size.$1);
+                Navigator.pop(context);
+              },
             ),
-            trailing: size.$2 != null && size.$1 == 'Standard'
-                ? Icon(Icons.check, color: themeProvider.primaryColor)
-                : null,
-            onTap: () {
-              Navigator.pop(context);
-            },
-          )),
+          ),
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  void _showProgressBarStyleDialog(BuildContext context, ThemeProvider themeProvider, SettingsProvider settingsProvider) {
+  void _showProgressBarStyleDialog(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    SettingsProvider settingsProvider,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: themeProvider.cardColor,
@@ -356,19 +382,21 @@ class AppearanceSettingsScreen extends StatelessWidget {
             ('Wavy (Less)', 'wavy1'),
             ('Wavy (More)', 'wavy2'),
             ('Modern', 'modern'),
-          ].map((style) => ListTile(
-            title: Text(
-              style.$1,
-              style: TextStyle(color: themeProvider.textColor),
+          ].map(
+            (style) => ListTile(
+              title: Text(
+                style.$1,
+                style: TextStyle(color: themeProvider.textColor),
+              ),
+              trailing: settingsProvider.progressBarStyle == style.$2
+                  ? Icon(Icons.check, color: themeProvider.primaryColor)
+                  : null,
+              onTap: () {
+                settingsProvider.setProgressBarStyle(style.$2);
+                Navigator.pop(context);
+              },
             ),
-            trailing: settingsProvider.progressBarStyle == style.$2
-                ? Icon(Icons.check, color: themeProvider.primaryColor)
-                : null,
-            onTap: () {
-              settingsProvider.setProgressBarStyle(style.$2);
-              Navigator.pop(context);
-            },
-          )),
+          ),
           const SizedBox(height: 24),
         ],
       ),
@@ -387,6 +415,18 @@ class AppearanceSettingsScreen extends StatelessWidget {
         return 'Modern';
       default:
         return 'Wavy (More)';
+    }
+  }
+
+  String _getFontSizeName(String size) {
+    switch (size) {
+      case 'small':
+        return 'Small';
+      case 'large':
+        return 'Large';
+      case 'standard':
+      default:
+        return 'Standard';
     }
   }
 }

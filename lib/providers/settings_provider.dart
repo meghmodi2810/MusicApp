@@ -12,19 +12,23 @@ class SettingsProvider extends ChangeNotifier {
   bool _autoplay = true;
   bool _gaplessPlayback = true;
   bool _swipeGesturesEnabled = true; // NEW: Swipe gestures for like/queue
-  
+
   // Download settings
   String _downloadQuality = 'high';
   bool _downloadOverWifiOnly = true;
-  
+
   // UI settings
   bool _showGetStarted = true;
   bool _animationsEnabled = true;
   String _progressBarStyle = 'wavy2'; // straight, wavy1, wavy2, modern
-  
+
+  // NEW: Appearance settings
+  String _fontSize = 'standard'; // small, standard, large
+  bool _gridLayoutEnabled = false;
+
   // Cache
   int _cacheSize = 0; // in MB
-  
+
   // Getters
   bool get crossfadeEnabled => _crossfadeEnabled;
   int get crossfadeDuration => _crossfadeDuration;
@@ -38,8 +42,10 @@ class SettingsProvider extends ChangeNotifier {
   bool get showGetStarted => _showGetStarted;
   bool get animationsEnabled => _animationsEnabled;
   String get progressBarStyle => _progressBarStyle;
+  String get fontSize => _fontSize; // NEW
+  bool get gridLayoutEnabled => _gridLayoutEnabled; // NEW
   int get cacheSize => _cacheSize;
-  
+
   // Bitrate based on quality
   int get audioBitrate {
     switch (_audioQuality) {
@@ -52,7 +58,7 @@ class SettingsProvider extends ChangeNotifier {
         return 320;
     }
   }
-  
+
   int get downloadBitrate {
     switch (_downloadQuality) {
       case 'low':
@@ -71,21 +77,23 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     _crossfadeEnabled = prefs.getBool('crossfadeEnabled') ?? false;
     _crossfadeDuration = prefs.getInt('crossfadeDuration') ?? 5;
     _audioQuality = prefs.getString('audioQuality') ?? 'high';
     _volumeNormalization = prefs.getBool('volumeNormalization') ?? false;
     _autoplay = prefs.getBool('autoplay') ?? true;
     _gaplessPlayback = prefs.getBool('gaplessPlayback') ?? true;
-    _swipeGesturesEnabled = prefs.getBool('swipeGesturesEnabled') ?? true; // NEW
+    _swipeGesturesEnabled = prefs.getBool('swipeGesturesEnabled') ?? true;
     _downloadQuality = prefs.getString('downloadQuality') ?? 'high';
     _downloadOverWifiOnly = prefs.getBool('downloadOverWifiOnly') ?? true;
     _showGetStarted = prefs.getBool('showGetStarted') ?? true;
     _animationsEnabled = prefs.getBool('animationsEnabled') ?? true;
     _progressBarStyle = prefs.getString('progressBarStyle') ?? 'wavy2';
+    _fontSize = prefs.getString('fontSize') ?? 'standard'; // NEW
+    _gridLayoutEnabled = prefs.getBool('gridLayoutEnabled') ?? false; // NEW
     _cacheSize = prefs.getInt('cacheSize') ?? 0;
-    
+
     notifyListeners();
   }
 
@@ -174,6 +182,22 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // NEW: Font size setting
+  Future<void> setFontSize(String size) async {
+    _fontSize = size;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('fontSize', size);
+    notifyListeners();
+  }
+
+  // NEW: Grid layout setting
+  Future<void> setGridLayoutEnabled(bool value) async {
+    _gridLayoutEnabled = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('gridLayoutEnabled', value);
+    notifyListeners();
+  }
+
   Future<void> clearCache() async {
     _cacheSize = 0;
     final prefs = await SharedPreferences.getInstance();
@@ -192,9 +216,12 @@ class SettingsProvider extends ChangeNotifier {
     try {
       final dir = await getTemporaryDirectory();
       int totalSize = 0;
-      
+
       if (await dir.exists()) {
-        await for (var entity in dir.list(recursive: true, followLinks: false)) {
+        await for (var entity in dir.list(
+          recursive: true,
+          followLinks: false,
+        )) {
           if (entity is File) {
             try {
               totalSize += await entity.length();
@@ -204,7 +231,7 @@ class SettingsProvider extends ChangeNotifier {
           }
         }
       }
-      
+
       final sizeInMB = (totalSize / (1024 * 1024)).round();
       await updateCacheSize(sizeInMB);
     } catch (e) {

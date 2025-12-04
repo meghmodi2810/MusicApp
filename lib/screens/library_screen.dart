@@ -993,7 +993,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 }
 
-class _PlaylistDetailScreen extends StatelessWidget {
+class _PlaylistDetailScreen extends StatefulWidget {
   final String title;
   final List<SongModel> songs;
   final String? coverUrl;
@@ -1013,6 +1013,42 @@ class _PlaylistDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<_PlaylistDetailScreen> createState() => _PlaylistDetailScreenState();
+}
+
+class _PlaylistDetailScreenState extends State<_PlaylistDetailScreen> {
+  List<SongModel> _filteredSongs = [];
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredSongs = widget.songs;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterSongs(String query) {
+    setState(() {
+      _searchQuery = query;
+      if (query.isEmpty) {
+        _filteredSongs = widget.songs;
+      } else {
+        _filteredSongs = widget.songs.where((song) {
+          return song.title.toLowerCase().contains(query.toLowerCase()) ||
+              song.artist.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: CustomScrollView(
@@ -1020,40 +1056,59 @@ class _PlaylistDetailScreen extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
-            backgroundColor: themeProvider.backgroundColor,
+            backgroundColor: widget.themeProvider.backgroundColor,
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: themeProvider.textColor),
+              icon: Icon(Icons.arrow_back, color: widget.themeProvider.textColor),
               onPressed: () => Navigator.pop(context),
             ),
+            // FIX: Add search button to app bar
+            actions: [
+              if (widget.songs.isNotEmpty)
+                IconButton(
+                  icon: Icon(
+                    _isSearching ? Icons.close : Icons.search,
+                    color: widget.themeProvider.textColor,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = !_isSearching;
+                      if (!_isSearching) {
+                        _searchController.clear();
+                        _filterSongs('');
+                      }
+                    });
+                  },
+                ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
-                title,
+                widget.title,
                 style: TextStyle(
-                  color: themeProvider.textColor,
+                  color: widget.themeProvider.textColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               background: Container(
                 decoration: BoxDecoration(
-                  gradient: coverGradient != null
+                  gradient: widget.coverGradient != null
                       ? LinearGradient(
-                          colors: coverGradient!,
+                          colors: widget.coverGradient!,
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         )
                       : null,
-                  color: coverGradient == null ? themeProvider.cardColor : null,
+                  color: widget.coverGradient == null ? widget.themeProvider.cardColor : null,
                 ),
-                child: coverUrl != null
+                child: widget.coverUrl != null
                     ? CachedNetworkImage(
-                        imageUrl: coverUrl!,
+                        imageUrl: widget.coverUrl!,
                         fit: BoxFit.cover,
                         colorBlendMode: BlendMode.darken,
                         color: Colors.black.withOpacity(0.3),
                       )
                     : Center(
                         child: Icon(
-                          icon ?? Icons.queue_music,
+                          widget.icon ?? Icons.queue_music,
                           size: 80,
                           color: Colors.white.withOpacity(0.8),
                         ),
@@ -1061,27 +1116,64 @@ class _PlaylistDetailScreen extends StatelessWidget {
               ),
             ),
           ),
+          
+          // FIX: Add search bar when searching
+          if (_isSearching)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  style: TextStyle(color: widget.themeProvider.textColor),
+                  decoration: InputDecoration(
+                    hintText: 'Search in ${widget.title}',
+                    hintStyle: TextStyle(color: widget.themeProvider.secondaryTextColor),
+                    prefixIcon: Icon(Icons.search, color: widget.themeProvider.primaryColor),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear, color: widget.themeProvider.secondaryTextColor),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterSongs('');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: widget.themeProvider.cardColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: _filterSongs,
+                ),
+              ),
+            ),
+          
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   Text(
-                    '${songs.length} songs',
+                    _searchQuery.isEmpty
+                        ? '${widget.songs.length} songs'
+                        : '${_filteredSongs.length} of ${widget.songs.length} songs',
                     style: TextStyle(
-                      color: themeProvider.secondaryTextColor,
+                      color: widget.themeProvider.secondaryTextColor,
                       fontSize: 14,
                     ),
                   ),
                   const Spacer(),
-                  if (songs.isNotEmpty)
+                  if (widget.songs.isNotEmpty && !_isSearching)
                     GestureDetector(
                       onTap: () {
                         final player = Provider.of<MusicPlayerProvider>(
                           context,
                           listen: false,
                         );
-                        player.playSong(songs.first, playlist: songs);
+                        player.playSong(widget.songs.first, playlist: widget.songs);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -1093,11 +1185,11 @@ class _PlaylistDetailScreen extends StatelessWidget {
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: themeProvider.primaryColor,
+                          color: widget.themeProvider.primaryColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: themeProvider.primaryColor.withOpacity(
+                              color: widget.themeProvider.primaryColor.withOpacity(
                                 0.4,
                               ),
                               blurRadius: 12,
@@ -1116,7 +1208,40 @@ class _PlaylistDetailScreen extends StatelessWidget {
               ),
             ),
           ),
-          if (songs.isEmpty)
+          if (_filteredSongs.isEmpty && _searchQuery.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 64,
+                        color: widget.themeProvider.secondaryTextColor,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No songs found',
+                        style: TextStyle(
+                          color: widget.themeProvider.textColor,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Try a different search term',
+                        style: TextStyle(
+                          color: widget.themeProvider.secondaryTextColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else if (widget.songs.isEmpty)
             SliverToBoxAdapter(
               child: Center(
                 child: Padding(
@@ -1126,13 +1251,13 @@ class _PlaylistDetailScreen extends StatelessWidget {
                       Icon(
                         Icons.music_off,
                         size: 64,
-                        color: themeProvider.secondaryTextColor,
+                        color: widget.themeProvider.secondaryTextColor,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'No songs yet',
                         style: TextStyle(
-                          color: themeProvider.textColor,
+                          color: widget.themeProvider.textColor,
                           fontSize: 18,
                         ),
                       ),
@@ -1140,7 +1265,7 @@ class _PlaylistDetailScreen extends StatelessWidget {
                       Text(
                         'Add songs to this playlist from search',
                         style: TextStyle(
-                          color: themeProvider.secondaryTextColor,
+                          color: widget.themeProvider.secondaryTextColor,
                           fontSize: 14,
                         ),
                       ),
@@ -1153,13 +1278,13 @@ class _PlaylistDetailScreen extends StatelessWidget {
             SliverList(
               delegate: SliverChildBuilderDelegate((context, index) {
                 return SongTile(
-                  song: songs[index],
-                  playlist: songs,
+                  song: _filteredSongs[index],
+                  playlist: widget.songs, // Use original playlist for playback
                   index: index + 1,
                 );
-              }, childCount: songs.length),
+              }, childCount: _filteredSongs.length),
             ),
-          // FIX: Add bottom padding for mini player
+          // FIX: Add bottom padding for mini player - CRITICAL
           const SliverPadding(padding: EdgeInsets.only(bottom: 150)),
         ],
       ),

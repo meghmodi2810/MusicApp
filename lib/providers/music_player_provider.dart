@@ -155,10 +155,11 @@ class MusicPlayerProvider extends ChangeNotifier {
         }
       }
 
-      // Pre-cache next song when 80% through current song (with lock check)
+      // Pre-cache next song when 60% through current song (with lock check)
+      // FIX: Changed from 80% to 60% to give more time for buffering/loading
       if (_duration.inSeconds > 0 && !_isPrecaching) {
         final progress = pos.inSeconds / _duration.inSeconds;
-        if (progress >= 0.8 && _precachedSong == null && !_isCrossfading) {
+        if (progress >= 0.6 && _precachedSong == null && !_isCrossfading) {
           _precacheNextSong();
         }
       }
@@ -525,10 +526,13 @@ class MusicPlayerProvider extends ChangeNotifier {
 
       // Load the audio file (but don't play)
       try {
+        // FIX: Add preload to start buffering immediately
         if (nextSong.isLocal) {
           await newPrecachePlayer.setFilePath(url);
         } else {
           await newPrecachePlayer.setUrl(url);
+          // CRITICAL: Preload the audio to start buffering
+          await newPrecachePlayer.load();
         }
       } catch (e) {
         debugPrint('❌ Failed to load precache song: $e');
@@ -771,7 +775,8 @@ class MusicPlayerProvider extends ChangeNotifier {
     if (_queue.isNotEmpty) {
       final nextSong = _queue.removeAt(0);
       notifyListeners();
-      await playSong(nextSong);
+      // FIX: Use pre-cached player if available instead of reloading
+      await _playNextSongOptimized(nextSong);
       return;
     }
 
@@ -788,12 +793,85 @@ class MusicPlayerProvider extends ChangeNotifier {
         await _loadSmartRecommendations();
         return;
       }
-      await playSong(_playlist[_currentIndex]);
+      // FIX: Use pre-cached player if available
+      await _playNextSongOptimized(_playlist[_currentIndex]);
       return;
     }
 
     // Priority 3: Load smart recommendations based on current song
     await _loadSmartRecommendations();
+  }
+
+  /// CRITICAL FIX: Play next song using pre-cached player if available (INSTANT playback)
+  Future<void> _playNextSongOptimized(SongModel nextSong) async {
+    try {
+      // Check if we have this song pre-cached
+      if (_precachePlayer != null && _precachedSong?.id == nextSong.id) {
+        debugPrint(
+          '✅ INSTANT playback using pre-cached player: ${nextSong.title}',
+        );
+
+        // Cancel subscriptions on old player
+        _cancelPlayerSubscriptions();
+
+        // Store old player for cleanup
+        final oldPlayer = _audioPlayer;
+
+        // Swap to pre-cached player (already loaded and buffered!)
+        _audioPlayer = _precachePlayer!;
+        _precachePlayer = null;
+        _precachedSong = null;
+
+        // Update state
+        _currentSong = nextSong;
+        _isPrecaching = false;
+
+        // Set correct volume
+        if (_volumeNormalization) {
+          _applyVolumeNormalization();
+        } else {
+          await _audioPlayer.setVolume(_volume);
+        }
+
+        // Setup listeners on new player
+        _setupPlayerListeners(_audioPlayer);
+
+        // Get duration
+        _duration = _audioPlayer.duration ?? Duration.zero;
+        durationNotifier.value = _duration;
+        _position = Duration.zero;
+        positionNotifier.value = Duration.zero;
+
+        // Update notification
+        await _audioHandler?.updateSongMediaItem(
+          nextSong.title,
+          nextSong.artist,
+          nextSong.albumArt,
+          _duration,
+        );
+
+        // Start playing (already buffered - INSTANT!)
+        await _audioPlayer.play();
+
+        debugPrint('🚀 Playing pre-cached song - NO LOADING TIME!');
+
+        // Dispose old player in background
+        _disposeOldPlayer(oldPlayer);
+
+        notifyListeners();
+        return;
+      }
+
+      // Pre-cache not available - fall back to normal loading
+      debugPrint(
+        '⚠️ Pre-cache not available for ${nextSong.title} - loading normally',
+      );
+      await playSong(nextSong);
+    } catch (e) {
+      debugPrint('Error in optimized playback: $e');
+      // Fallback to normal playback
+      await playSong(nextSong);
+    }
   }
 
   // Load recommendations based on current song's artist (FAST version)

@@ -153,7 +153,20 @@ class MusicApiService {
     final artists = <ArtistModel>[];
     for (final artist in results) {
       try {
-        artists.add(ArtistModel.fromJioSaavnJson(artist));
+        final parsedArtist = ArtistModel.fromJioSaavnJson(artist);
+
+        // FIX: Filter out invalid artists (no image, no proper data)
+        // Only add artists with valid profile images
+        if (parsedArtist.imageUrl != null &&
+            parsedArtist.imageUrl!.isNotEmpty &&
+            !parsedArtist.imageUrl!.contains('default') &&
+            !parsedArtist.imageUrl!.contains('placeholder') &&
+            parsedArtist.id.isNotEmpty &&
+            parsedArtist.name.isNotEmpty) {
+          artists.add(parsedArtist);
+        } else {
+          debugPrint('⚠️ Filtered out invalid artist: ${parsedArtist.name}');
+        }
       } catch (e) {
         debugPrint('Error parsing artist: $e');
       }
@@ -285,19 +298,46 @@ class MusicApiService {
     return searchAlbums('popular albums');
   }
 
-  // Get trending artists - use more reliable queries
+  // Get trending artists - use more reliable queries and filter for quality
   Future<List<ArtistModel>> getTrendingArtists() async {
     try {
-      final data = await _fetchFromSaavn(
-        '/search/artists?query=popular artists&limit=20',
-      );
-      if (data != null) {
-        final artists = _parseArtistResults(data);
-        if (artists.isNotEmpty) return artists;
+      // FIX: Use specific popular artist queries for better quality results
+      final queries = [
+        'arijit singh',
+        'shreya ghoshal',
+        'ar rahman',
+        'atif aslam',
+        'sonu nigam',
+      ];
+
+      final allArtists = <ArtistModel>[];
+
+      for (final query in queries) {
+        final data = await _fetchFromSaavn(
+          '/search/artists?query=${Uri.encodeComponent(query)}&limit=5',
+        ).timeout(const Duration(seconds: 5), onTimeout: () => null);
+
+        if (data != null) {
+          final artists = _parseArtistResults(data);
+          allArtists.addAll(artists);
+        }
+      }
+
+      // Remove duplicates and return top artists with valid images
+      final seen = <String>{};
+      final uniqueArtists = allArtists
+          .where((artist) => seen.add(artist.id))
+          .toList();
+
+      if (uniqueArtists.isNotEmpty) {
+        debugPrint('✅ Found ${uniqueArtists.length} valid trending artists');
+        return uniqueArtists;
       }
     } catch (e) {
       debugPrint('Trending artists error: $e');
     }
+
+    // Fallback
     return searchArtists('top artists');
   }
 

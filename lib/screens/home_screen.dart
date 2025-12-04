@@ -200,12 +200,13 @@ class _HomeScreenState extends State<HomeScreen>
       _allRecommendedAlbums = uniqueAlbums.take(50).toList();
       _allRecommendedArtists = uniqueArtists.take(50).toList();
 
-      // Show only top 7 on home screen
+      // FIX: Show top 7-10 items on home screen (increased from 7)
       if (mounted) {
         setState(() {
           _recommendedSongs = _allRecommendedSongs.take(7).toList();
           _recommendedAlbums = _allRecommendedAlbums.take(7).toList();
-          _recommendedArtists = _allRecommendedArtists.take(7).toList();
+          // FIX: Show more artists (10 instead of 7)
+          _recommendedArtists = _allRecommendedArtists.take(10).toList();
           _isLoading = false;
         });
         debugPrint(
