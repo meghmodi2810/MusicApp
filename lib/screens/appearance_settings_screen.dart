@@ -175,7 +175,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
 
   Widget _buildThemeOption(AppColorScheme scheme, ThemeProvider themeProvider) {
     final isSelected = themeProvider.colorScheme == scheme;
-    final previewColor = themeProvider.getSchemePreviewColor(scheme);
+    final previewColor = _getAdjustedPreviewColor(scheme, themeProvider);
     final schemeName = themeProvider.getSchemeName(scheme);
 
     return GestureDetector(
@@ -230,6 +230,30 @@ class AppearanceSettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // Get adjusted colors for dark themes to make them more distinguishable
+  Color _getAdjustedPreviewColor(
+    AppColorScheme scheme,
+    ThemeProvider themeProvider,
+  ) {
+    final baseColor = themeProvider.getSchemePreviewColor(scheme);
+
+    // For dark themes, add a slight tint of their accent color to make them distinguishable
+    switch (scheme) {
+      case AppColorScheme.amoledBlack:
+        return Color.lerp(baseColor, AppTheme.amoledAccent, 0.15)!;
+      case AppColorScheme.darkLavender:
+        return Color.lerp(baseColor, AppTheme.darkLavenderAccent, 0.20)!;
+      case AppColorScheme.darkPink:
+        return Color.lerp(baseColor, AppTheme.darkPinkAccent, 0.20)!;
+      case AppColorScheme.darkYellow:
+        return Color.lerp(baseColor, AppTheme.darkYellowAccent, 0.18)!;
+      case AppColorScheme.darkMintGreen:
+        return Color.lerp(baseColor, AppTheme.darkMintGreenAccent, 0.20)!;
+      default:
+        return baseColor;
+    }
   }
 
   Widget _buildSettingsTile(

@@ -11,7 +11,7 @@ import '../services/music_api_service.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/song_tile.dart';
 import 'album_screen.dart';
-import 'artist_screen.dart';
+import 'artist_detail_screen.dart'; // CHANGED: Use ArtistDetailScreen for discography
 
 enum SearchFilter { songs, albums, artists }
 
@@ -749,7 +749,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ArtistScreen(artist: artist),
+                    builder: (_) => ArtistDetailScreen(
+                      artist: artist,
+                    ), // CHANGED: Use ArtistDetailScreen with tabs
                   ),
                 );
               },

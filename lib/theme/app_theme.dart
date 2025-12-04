@@ -17,57 +17,83 @@ enum AppColorScheme {
 
 class AppTheme {
   // Warm Yellow Theme Colors (Default - matching the template images exactly)
-  static const Color warmYellow = Color(0xFFF7E5B7);  // Main background - creamy yellow
-  static const Color warmYellowLight = Color(0xFFFFF8E7);  // Card background - lighter cream
-  static const Color warmOrange = Color(0xFFE85D04);  // Primary accent - vibrant orange
-  static const Color warmBrown = Color(0xFF8B2500);  // Secondary accent - deep brown/red
-  static const Color warmRed = Color(0xFFBF3100);  // Highlight color - burnt orange/red
-  static const Color warmDarkBrown = Color(0xFF4A1C00);  // Text color - dark brown
-  static const Color warmNavBar = Color(0xFF5C1A00);  // Navigation bar - maroon/burgundy
-  
+  static const Color warmYellow = Color(
+    0xFFF7E5B7,
+  ); // Main background - creamy yellow
+  static const Color warmYellowLight = Color(
+    0xFFFFF8E7,
+  ); // Card background - lighter cream
+  static const Color warmOrange = Color(
+    0xFFE85D04,
+  ); // Primary accent - vibrant orange
+  static const Color warmBrown = Color(
+    0xFF8B2500,
+  ); // Secondary accent - deep brown/red
+  static const Color warmRed = Color(
+    0xFFBF3100,
+  ); // Highlight color - burnt orange/red
+  static const Color warmDarkBrown = Color(
+    0xFF4A1C00,
+  ); // Text color - dark brown
+  static const Color warmNavBar = Color(
+    0xFF5C1A00,
+  ); // Navigation bar - maroon/burgundy
+
   // Soft Pink Theme Colors
   static const Color softPink = Color(0xFFFFE4E1);
   static const Color softPinkAccent = Color(0xFFFF69B4);
   static const Color softPinkDark = Color(0xFFDB7093);
-  
+
   // AMOLED Black Theme Colors
   static const Color amoledBlack = Color(0xFF000000);
   static const Color amoledGray = Color(0xFF1A1A1A);
   static const Color amoledAccent = Color(0xFFFF6B6B);
-  
+
   // Mint Green Theme Colors
   static const Color mintGreen = Color(0xFFE0F2E9);
   static const Color mintGreenAccent = Color(0xFF4ECDC4);
   static const Color mintGreenDark = Color(0xFF2D6A4F);
-  
+
   // Lavender Theme Colors
   static const Color lavender = Color(0xFFF0E6FA);
   static const Color lavenderAccent = Color(0xFF9B59B6);
   static const Color lavenderDark = Color(0xFF6C3483);
 
   // Dark Lavender Theme Colors (AMOLED)
-  static const Color darkLavenderBg = Color(0xFF0A0012);  // Deep dark purple/black
-  static const Color darkLavenderCard = Color(0xFF1A0F2E);  // Dark purple card
-  static const Color darkLavenderAccent = Color(0xFFB794F6);  // Bright lavender accent
-  static const Color darkLavenderText = Color(0xFFE9D5FF);  // Light lavender text
-  
+  static const Color darkLavenderBg = Color(
+    0xFF0A0012,
+  ); // Deep dark purple/black
+  static const Color darkLavenderCard = Color(0xFF1A0F2E); // Dark purple card
+  static const Color darkLavenderAccent = Color(
+    0xFFB794F6,
+  ); // Bright lavender accent
+  static const Color darkLavenderText = Color(
+    0xFFE9D5FF,
+  ); // Light lavender text
+
   // Dark Pink Theme Colors (AMOLED)
-  static const Color darkPinkBg = Color(0xFF0F0008);  // Deep dark pink/black
-  static const Color darkPinkCard = Color(0xFF2A0F1C);  // Dark pink card
-  static const Color darkPinkAccent = Color(0xFFFF6B9D);  // Bright pink accent
-  static const Color darkPinkText = Color(0xFFFFD6E8);  // Light pink text
-  
+  static const Color darkPinkBg = Color(0xFF0F0008); // Deep dark pink/black
+  static const Color darkPinkCard = Color(0xFF2A0F1C); // Dark pink card
+  static const Color darkPinkAccent = Color(0xFFFF6B9D); // Bright pink accent
+  static const Color darkPinkText = Color(0xFFFFD6E8); // Light pink text
+
   // Dark Yellow Theme Colors (AMOLED)
-  static const Color darkYellowBg = Color(0xFF0F0A00);  // Deep dark amber/black
-  static const Color darkYellowCard = Color(0xFF2A1F0F);  // Dark amber card
-  static const Color darkYellowAccent = Color(0xFFFFB84D);  // Bright yellow/gold accent
-  static const Color darkYellowText = Color(0xFFFFF4D6);  // Light cream text
+  static const Color darkYellowBg = Color(0xFF0F0A00); // Deep dark amber/black
+  static const Color darkYellowCard = Color(0xFF2A1F0F); // Dark amber card
+  static const Color darkYellowAccent = Color(
+    0xFFFFB84D,
+  ); // Bright yellow/gold accent
+  static const Color darkYellowText = Color(0xFFFFF4D6); // Light cream text
 
   // Dark Mint Green Theme Colors (AMOLED)
-  static const Color darkMintGreenBg = Color(0xFF0A1410);  // Deep dark mint/black
-  static const Color darkMintGreenCard = Color(0xFF1A2E26);  // Dark mint card
-  static const Color darkMintGreenAccent = Color(0xFF6FFFC9);  // Bright mint green accent
-  static const Color darkMintGreenText = Color(0xFFD6FFF0);  // Light mint text
+  static const Color darkMintGreenBg = Color(
+    0xFF0A1410,
+  ); // Deep dark mint/black
+  static const Color darkMintGreenCard = Color(0xFF1A2E26); // Dark mint card
+  static const Color darkMintGreenAccent = Color(
+    0xFF6FFFC9,
+  ); // Bright mint green accent
+  static const Color darkMintGreenText = Color(0xFFD6FFF0); // Light mint text
 
   // Get colors based on color scheme
   static Color getBackgroundColor(AppColorScheme scheme) {
@@ -210,10 +236,10 @@ class AppTheme {
 
   static bool isDarkScheme(AppColorScheme scheme) {
     return scheme == AppColorScheme.amoledBlack ||
-           scheme == AppColorScheme.darkLavender ||
-           scheme == AppColorScheme.darkPink ||
-           scheme == AppColorScheme.darkYellow ||
-           scheme == AppColorScheme.darkMintGreen;
+        scheme == AppColorScheme.darkLavender ||
+        scheme == AppColorScheme.darkPink ||
+        scheme == AppColorScheme.darkYellow ||
+        scheme == AppColorScheme.darkMintGreen;
   }
 
   static String getSchemeName(AppColorScheme scheme) {
@@ -273,21 +299,71 @@ class AppTheme {
 
     // Use system fonts with fallback for better performance and reliability
     final textTheme = TextTheme(
-      displayLarge: _getTextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.5),
-      displayMedium: _getTextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.3),
-      displaySmall: _getTextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
-      headlineLarge: _getTextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
-      headlineMedium: _getTextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
-      headlineSmall: _getTextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: textColor),
-      titleLarge: _getTextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: textColor),
-      titleMedium: _getTextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor),
-      titleSmall: _getTextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+      displayLarge: _getTextStyle(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+        letterSpacing: -0.5,
+      ),
+      displayMedium: _getTextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+        letterSpacing: -0.3,
+      ),
+      displaySmall: _getTextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+      ),
+      headlineLarge: _getTextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+      ),
+      headlineMedium: _getTextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+      ),
+      headlineSmall: _getTextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
+      titleLarge: _getTextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
+      titleMedium: _getTextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
+      titleSmall: _getTextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
       bodyLarge: _getTextStyle(fontSize: 16, color: textColor),
       bodyMedium: _getTextStyle(fontSize: 14, color: secondaryText),
       bodySmall: _getTextStyle(fontSize: 12, color: secondaryText),
-      labelLarge: _getTextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
-      labelMedium: _getTextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
-      labelSmall: _getTextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: secondaryText),
+      labelLarge: _getTextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
+      labelMedium: _getTextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      labelSmall: _getTextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: secondaryText,
+      ),
     );
 
     return ThemeData(
@@ -322,14 +398,22 @@ class AppTheme {
         centerTitle: false,
         scrolledUnderElevation: 0,
         iconTheme: IconThemeData(color: textColor),
-        titleTextStyle: _getTextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+        titleTextStyle: _getTextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: navBarColor,
         indicatorColor: accentColor.withOpacity(0.3),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return _getTextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white);
+            return _getTextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            );
           }
           return _getTextStyle(fontSize: 12, color: Colors.white70);
         }),
@@ -350,9 +434,15 @@ class AppTheme {
           backgroundColor: accentColor,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-          textStyle: _getTextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+          textStyle: _getTextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -363,7 +453,10 @@ class AppTheme {
           borderSide: BorderSide.none,
         ),
         hintStyle: _getTextStyle(fontSize: 14, color: secondaryText),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       iconTheme: IconThemeData(color: textColor),
       dividerColor: textColor.withOpacity(0.1),

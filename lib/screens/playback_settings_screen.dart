@@ -19,10 +19,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Playback',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
         ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
@@ -38,11 +35,12 @@ class PlaybackSettingsScreen extends StatelessWidget {
             context,
             icon: Icons.swap_horiz,
             title: 'Crossfade',
-            subtitle: settingsProvider.crossfadeEnabled 
+            subtitle: settingsProvider.crossfadeEnabled
                 ? '${settingsProvider.crossfadeDuration} seconds'
                 : 'Off',
             themeProvider: themeProvider,
-            onTap: () => _showCrossfadeDialog(context, themeProvider, settingsProvider),
+            onTap: () =>
+                _showCrossfadeDialog(context, themeProvider, settingsProvider),
           ),
           _buildSettingsTile(
             context,
@@ -54,7 +52,10 @@ class PlaybackSettingsScreen extends StatelessWidget {
               value: settingsProvider.volumeNormalization,
               onChanged: (value) {
                 settingsProvider.setVolumeNormalization(value);
-                final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+                final player = Provider.of<MusicPlayerProvider>(
+                  context,
+                  listen: false,
+                );
                 player.setVolumeNormalization(value);
               },
               activeColor: accentColor,
@@ -84,7 +85,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
               activeColor: accentColor,
             ),
           ),
-          
+
           // Gestures Section
           _buildSectionHeader('Gestures', secondaryText),
           _buildSettingsTile(
@@ -95,11 +96,12 @@ class PlaybackSettingsScreen extends StatelessWidget {
             themeProvider: themeProvider,
             trailing: Switch(
               value: settingsProvider.swipeGesturesEnabled,
-              onChanged: (value) => settingsProvider.setSwipeGesturesEnabled(value),
+              onChanged: (value) =>
+                  settingsProvider.setSwipeGesturesEnabled(value),
               activeColor: accentColor,
             ),
           ),
-          
+
           const SizedBox(height: 100),
         ],
       ),
@@ -143,11 +145,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
             color: themeProvider.primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            icon,
-            color: themeProvider.primaryColor,
-            size: 22,
-          ),
+          child: Icon(icon, color: themeProvider.primaryColor, size: 22),
         ),
         title: Text(
           title,
@@ -165,15 +163,24 @@ class PlaybackSettingsScreen extends StatelessWidget {
                 ),
               )
             : null,
-        trailing: trailing ?? (onTap != null 
-            ? Icon(Icons.chevron_right, color: themeProvider.secondaryTextColor)
-            : null),
+        trailing:
+            trailing ??
+            (onTap != null
+                ? Icon(
+                    Icons.chevron_right,
+                    color: themeProvider.secondaryTextColor,
+                  )
+                : null),
         onTap: onTap,
       ),
     );
   }
 
-  void _showCrossfadeDialog(BuildContext context, ThemeProvider themeProvider, SettingsProvider settingsProvider) {
+  void _showCrossfadeDialog(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    SettingsProvider settingsProvider,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: themeProvider.cardColor,
@@ -212,11 +219,17 @@ class PlaybackSettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             SwitchListTile(
-              title: Text('Enable Crossfade', style: TextStyle(color: themeProvider.textColor)),
+              title: Text(
+                'Enable Crossfade',
+                style: TextStyle(color: themeProvider.textColor),
+              ),
               value: settingsProvider.crossfadeEnabled,
               onChanged: (value) {
                 settingsProvider.setCrossfadeEnabled(value);
-                final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+                final player = Provider.of<MusicPlayerProvider>(
+                  context,
+                  listen: false,
+                );
                 player.setCrossfade(value, settingsProvider.crossfadeDuration);
                 setState(() {});
               },
@@ -249,11 +262,19 @@ class PlaybackSettingsScreen extends StatelessWidget {
                       max: 12,
                       divisions: 11,
                       activeColor: themeProvider.primaryColor,
-                      inactiveColor: themeProvider.primaryColor.withOpacity(0.3),
+                      inactiveColor: themeProvider.primaryColor.withOpacity(
+                        0.3,
+                      ),
                       onChanged: (value) {
                         settingsProvider.setCrossfadeDuration(value.round());
-                        final player = Provider.of<MusicPlayerProvider>(context, listen: false);
-                        player.setCrossfade(settingsProvider.crossfadeEnabled, value.round());
+                        final player = Provider.of<MusicPlayerProvider>(
+                          context,
+                          listen: false,
+                        );
+                        player.setCrossfade(
+                          settingsProvider.crossfadeEnabled,
+                          value.round(),
+                        );
                         setState(() {});
                       },
                     ),
@@ -267,13 +288,18 @@ class PlaybackSettingsScreen extends StatelessWidget {
                           style: TextStyle(color: themeProvider.textColor),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: themeProvider.primaryColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: DropdownButton<CrossfadeCurve>(
-                            value: Provider.of<MusicPlayerProvider>(context).crossfadeCurve,
+                            value: Provider.of<MusicPlayerProvider>(
+                              context,
+                            ).crossfadeCurve,
                             dropdownColor: themeProvider.cardColor,
                             underline: const SizedBox(),
                             isDense: true,
@@ -290,7 +316,10 @@ class PlaybackSettingsScreen extends StatelessWidget {
                             }).toList(),
                             onChanged: (curve) {
                               if (curve != null) {
-                                final player = Provider.of<MusicPlayerProvider>(context, listen: false);
+                                final player = Provider.of<MusicPlayerProvider>(
+                                  context,
+                                  listen: false,
+                                );
                                 player.setCrossfadeCurve(curve);
                                 setState(() {});
                               }
@@ -301,7 +330,11 @@ class PlaybackSettingsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _getCurveDescription(Provider.of<MusicPlayerProvider>(context).crossfadeCurve),
+                      _getCurveDescription(
+                        Provider.of<MusicPlayerProvider>(
+                          context,
+                        ).crossfadeCurve,
+                      ),
                       style: TextStyle(
                         fontSize: 12,
                         color: themeProvider.secondaryTextColor,
