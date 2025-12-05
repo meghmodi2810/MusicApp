@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'providers/music_player_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
@@ -16,6 +17,9 @@ import 'widgets/mini_player.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Request notification permission for Android 13+ (required for media notifications)
+  await _requestNotificationPermission();
+
   // CRITICAL FIX: Don't await - run in background
   DownloadService().initialize();
 
@@ -27,6 +31,35 @@ void main() async {
   );
 
   runApp(const MyApp());
+}
+
+/// Request notification permission for Android 13+
+/// This is REQUIRED for media notification to appear
+Future<void> _requestNotificationPermission() async {
+  try {
+    // Check if we need to request notification permission (Android 13+)
+    final status = await Permission.notification.status;
+    debugPrint('🔔 Notification permission status: $status');
+
+    if (status.isDenied || status.isLimited) {
+      final result = await Permission.notification.request();
+      debugPrint('🔔 Notification permission result: $result');
+
+      if (result.isGranted) {
+        debugPrint('✅ Notification permission granted');
+      } else if (result.isPermanentlyDenied) {
+        debugPrint(
+          '⚠️ Notification permission permanently denied - user must enable in settings',
+        );
+      } else {
+        debugPrint('⚠️ Notification permission denied');
+      }
+    } else if (status.isGranted) {
+      debugPrint('✅ Notification permission already granted');
+    }
+  } catch (e) {
+    debugPrint('❌ Error requesting notification permission: $e');
+  }
 }
 
 class MyApp extends StatefulWidget {

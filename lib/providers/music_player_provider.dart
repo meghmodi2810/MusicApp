@@ -102,14 +102,19 @@ class MusicPlayerProvider extends ChangeNotifier {
         config: const AudioServiceConfig(
           androidNotificationChannelId: 'com.pancaketunes.app.channel.audio',
           androidNotificationChannelName: 'Pancake Tunes',
-          // Keep notification ongoing and stop foreground on pause for proper background playback
-          androidNotificationOngoing: true,
+          androidNotificationChannelDescription: 'Pancake Tunes music playback',
+          // CRITICAL: Set to false to keep notification visible when paused
+          androidNotificationOngoing: false,
           androidShowNotificationBadge: true,
+          // CRITICAL: Must be true when androidNotificationOngoing is false
           androidStopForegroundOnPause: true,
           artDownscaleWidth: 300,
           artDownscaleHeight: 300,
           fastForwardInterval: Duration(seconds: 10),
           rewindInterval: Duration(seconds: 10),
+          // CRITICAL: Keep notification when app is swiped away
+          androidNotificationClickStartsActivity: true,
+          androidResumeOnClick: true,
         ),
       );
       debugPrint('✅ Audio service initialized successfully');
@@ -585,14 +590,16 @@ class MusicPlayerProvider extends ChangeNotifier {
 
         // CRITICAL: Set volume to playing level and start IMMEDIATELY
         final targetVolume = _volumeNormalization ? _normalizedVolume : _volume;
-        
+
         // Use a single atomic operation - set volume and play together
         await Future.wait([
           _audioPlayer.setVolume(targetVolume),
           _audioPlayer.play(),
         ]);
-        
-        debugPrint('🚀 TRUE GAPLESS - Audio decoder already initialized, playing instantly!');
+
+        debugPrint(
+          '🚀 TRUE GAPLESS - Audio decoder already initialized, playing instantly!',
+        );
 
         // NOW setup listeners and update UI (after audio is already playing)
         _cancelPlayerSubscriptions();
@@ -673,14 +680,16 @@ class MusicPlayerProvider extends ChangeNotifier {
         _applyVolumeNormalization();
       }
 
-      // Update notification with song info
+      // CRITICAL FIX: Update notification BEFORE starting playback
+      // This ensures the notification appears immediately
       await _audioHandler?.updateSongMediaItem(
         song.title,
         song.artist,
         song.albumArt,
-        _duration,
+        _audioPlayer.duration ?? Duration.zero,
       );
 
+      // Now start playback - notification will be visible
       await _audioPlayer.play();
 
       // Track song play for recommendations
@@ -998,14 +1007,16 @@ class MusicPlayerProvider extends ChangeNotifier {
         _applyVolumeNormalization();
       }
 
-      // Update notification with song info
+      // CRITICAL FIX: Update notification BEFORE starting playback
+      // This ensures the notification appears immediately
       await _audioHandler?.updateSongMediaItem(
         song.title,
         song.artist,
         song.albumArt,
-        _duration,
+        _audioPlayer.duration ?? Duration.zero,
       );
 
+      // Now start playback - notification will be visible
       await _audioPlayer.play();
 
       // Track song play for recommendations
@@ -1105,9 +1116,8 @@ class MusicPlayerProvider extends ChangeNotifier {
 enum CrossfadeCurve {
   /// Linear crossfade - simple but can sound abrupt
   linear,
-
+  
   /// Equal power crossfade (Spotify default) - maintains constant perceived loudness
-  /// Uses sine/cosine curves for smooth, natural transitions
   equalPower,
 
   /// Quadratic ease - smooth acceleration/deceleration
