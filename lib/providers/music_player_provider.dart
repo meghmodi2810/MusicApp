@@ -50,6 +50,9 @@ class MusicPlayerProvider extends ChangeNotifier {
   // Pre-cache lock to prevent multiple concurrent pre-cache operations
   bool _isPrecaching = false;
 
+  // Mutex to prevent concurrent player swap operations (prevents race conditions)
+  bool _isSwappingPlayer = false;
+
   // Volume normalization
   bool _volumeNormalization = false;
   double _normalizedVolume = 1.0;
@@ -88,9 +91,22 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   Future<void> _initializePlayer() async {
     try {
+      // CRITICAL FIX: Delay audio session initialization to ensure FlutterEngine is ready
+      // This fixes the "Activity class declared in your AndroidManifest.xml is wrong" error
+      // Wait a bit for FlutterEngine to be fully initialized
+      await Future.delayed(const Duration(milliseconds: 100));
+      
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
+      debugPrint('✅ Audio session configured successfully');
+    } catch (e) {
+      // CRITICAL FIX: Don't fail completely if audio session fails
+      // Audio playback will still work, just without audio session features
+      debugPrint('⚠️ Error configuring audio session (non-critical): $e');
+      debugPrint('   Audio playback will continue without audio session features');
+    }
 
+    try {
       // Initialize audio service for notifications WITH CALLBACKS
       _audioHandler = await AudioService.init(
         builder: () => AudioPlayerHandler(
@@ -119,7 +135,10 @@ class MusicPlayerProvider extends ChangeNotifier {
       );
       debugPrint('✅ Audio service initialized successfully');
     } catch (e) {
-      debugPrint('❌ Error configuring audio session: $e');
+      // CRITICAL FIX: Don't fail completely if audio service fails
+      // Audio playback will still work, just without notifications
+      debugPrint('⚠️ Error initializing audio service (non-critical): $e');
+      debugPrint('   Audio playback will continue without notification controls');
     }
 
     _setupPlayerListeners(_audioPlayer);
@@ -345,11 +364,13 @@ class MusicPlayerProvider extends ChangeNotifier {
         return;
       }
 
-      // Cancel subscriptions on old player BEFORE swapping
-      _cancelPlayerSubscriptions();
-
-      // Swap to the new player
-      _audioPlayer = crossfadeNewPlayer;
+      // CRITICAL FIX: Use atomic player swap to prevent race conditions
+      await _atomicPlayerSwap(
+        oldPlayer: oldPlayer,
+        newPlayer: crossfadeNewPlayer,
+        newSong: nextSong,
+        resetPosition: true, // Reset position for crossfade
+      );
 
       // Update current song and playlist state
       _currentSong = nextSong;
@@ -359,7 +380,7 @@ class MusicPlayerProvider extends ChangeNotifier {
         _currentIndex = (_currentIndex + 1) % _playlist.length;
       }
 
-      // Clear pre-cache state (will re-cache at 80% of new song)
+      // Clear pre-cache state (will re-cache at 60% of new song)
       _precachedSong = null;
       _isPrecaching = false;
 
@@ -373,17 +394,6 @@ class MusicPlayerProvider extends ChangeNotifier {
       } catch (e) {
         debugPrint('Error setting volume on new player: $e');
       }
-
-      // Setup listeners on the new player
-      _setupPlayerListeners(_audioPlayer);
-
-      // Update duration from new player
-      _duration = _audioPlayer.duration ?? Duration.zero;
-      durationNotifier.value = _duration;
-
-      // Reset position
-      _position = _audioPlayer.position;
-      positionNotifier.value = _position;
 
       // Update notification with new song info
       try {
@@ -429,6 +439,78 @@ class MusicPlayerProvider extends ChangeNotifier {
       debugPrint('🗑️ Old player disposed');
     } catch (e) {
       debugPrint('Error disposing old player: $e');
+    }
+  }
+
+  /// CRITICAL FIX: Atomic player swap method that prevents race conditions
+  /// This ensures:
+  /// 1. Old player is stopped and subscriptions cancelled BEFORE swap
+  /// 2. UI state (position/duration) is reset BEFORE new player starts
+  /// 3. New player listeners are set up BEFORE playing
+  /// 4. Audio handler is updated with new player reference
+  /// 5. Only one swap can happen at a time (mutex protection)
+  Future<void> _atomicPlayerSwap({
+    required AudioPlayer oldPlayer,
+    required AudioPlayer newPlayer,
+    required SongModel newSong,
+    bool resetPosition = true,
+  }) async {
+    // Mutex: Prevent concurrent swaps
+    if (_isSwappingPlayer) {
+      debugPrint('⚠️ Player swap already in progress, skipping...');
+      return;
+    }
+    _isSwappingPlayer = true;
+
+    try {
+      debugPrint('🔄 Starting atomic player swap...');
+
+      // STEP 1: Cancel subscriptions on old player FIRST
+      // This stops UI from receiving updates from old player
+      _cancelPlayerSubscriptions();
+
+      // STEP 2: Stop old player to prevent dual playback
+      try {
+        await oldPlayer.stop();
+        debugPrint('🛑 Old player stopped');
+      } catch (e) {
+        debugPrint('⚠️ Error stopping old player: $e');
+      }
+
+      // STEP 3: Reset UI state BEFORE swapping players
+      // This ensures progress bar shows 0:00 immediately, not old position
+      if (resetPosition) {
+        _position = Duration.zero;
+        positionNotifier.value = Duration.zero;
+      }
+
+      // STEP 4: Swap player reference
+      _audioPlayer = newPlayer;
+
+      // STEP 5: Setup listeners on NEW player BEFORE any playback
+      // This ensures UI receives updates from the correct player
+      _setupPlayerListeners(_audioPlayer);
+
+      // STEP 6: Update audio handler with new player reference
+      // This ensures notification controls work with the new player
+      _audioHandler?.updateAudioPlayer(_audioPlayer);
+
+      // STEP 7: Get duration from new player and update UI
+      _duration = _audioPlayer.duration ?? Duration.zero;
+      durationNotifier.value = _duration;
+
+      // If not resetting position, get current position from new player
+      if (!resetPosition) {
+        _position = _audioPlayer.position;
+        positionNotifier.value = _position;
+      }
+
+      debugPrint('✅ Atomic player swap complete');
+    } catch (e) {
+      debugPrint('❌ Error in atomic player swap: $e');
+      rethrow;
+    } finally {
+      _isSwappingPlayer = false;
     }
   }
 
@@ -568,6 +650,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   }
 
   /// CRITICAL FIX: Play next song using pre-cached player if available (INSTANT playback)
+  /// FIXED: Uses atomic player swap to prevent race conditions and dual playback
   Future<void> _playNextSongOptimized(SongModel nextSong) async {
     try {
       // Check if we have this song pre-cached
@@ -578,15 +661,24 @@ class MusicPlayerProvider extends ChangeNotifier {
 
         // Store old player for cleanup
         final oldPlayer = _audioPlayer;
+        final newPlayer = _precachePlayer!;
 
-        // Swap to pre-cached player (already loaded and buffered!)
-        _audioPlayer = _precachePlayer!;
+        // Clear precache references BEFORE swap
         _precachePlayer = null;
         _precachedSong = null;
-
-        // Update state IMMEDIATELY
-        _currentSong = nextSong;
         _isPrecaching = false;
+
+        // Update current song state
+        _currentSong = nextSong;
+
+        // CRITICAL FIX: Use atomic player swap to ensure proper state management
+        // This handles: stopping old player, cancelling subscriptions, resetting UI, setting up new listeners
+        await _atomicPlayerSwap(
+          oldPlayer: oldPlayer,
+          newPlayer: newPlayer,
+          newSong: nextSong,
+          resetPosition: true, // Always reset position for next song
+        );
 
         // CRITICAL: Set volume to playing level and start IMMEDIATELY
         final targetVolume = _volumeNormalization ? _normalizedVolume : _volume;
@@ -600,16 +692,6 @@ class MusicPlayerProvider extends ChangeNotifier {
         debugPrint(
           '🚀 TRUE GAPLESS - Audio decoder already initialized, playing instantly!',
         );
-
-        // NOW setup listeners and update UI (after audio is already playing)
-        _cancelPlayerSubscriptions();
-        _setupPlayerListeners(_audioPlayer);
-
-        // Get duration
-        _duration = _audioPlayer.duration ?? Duration.zero;
-        durationNotifier.value = _duration;
-        _position = Duration.zero;
-        positionNotifier.value = Duration.zero;
 
         // Update notification in background (don't block!)
         _audioHandler?.updateSongMediaItem(
@@ -640,6 +722,12 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   Future<void> playSong(SongModel song, {List<SongModel>? playlist}) async {
     try {
+      // CRITICAL FIX: Prevent concurrent operations
+      if (_isSwappingPlayer) {
+        debugPrint('⚠️ Player swap in progress, skipping playSong');
+        return;
+      }
+
       // Cancel any ongoing crossfade
       _isCrossfading = false;
       _crossfadePlayer?.stop();
@@ -650,6 +738,21 @@ class MusicPlayerProvider extends ChangeNotifier {
       _precachePlayer?.dispose();
       _precachePlayer = null;
       _precachedSong = null;
+
+      // CRITICAL FIX: Stop current player BEFORE loading new song
+      // This prevents dual playback when user manually changes songs
+      try {
+        await _audioPlayer.stop();
+      } catch (e) {
+        debugPrint('⚠️ Error stopping player before new song: $e');
+      }
+
+      // CRITICAL FIX: Reset position/duration BEFORE loading new song
+      // This ensures UI shows correct state immediately
+      _position = Duration.zero;
+      _duration = Duration.zero;
+      positionNotifier.value = Duration.zero;
+      durationNotifier.value = Duration.zero;
 
       _isLoading = true;
       notifyListeners();
@@ -676,6 +779,10 @@ class MusicPlayerProvider extends ChangeNotifier {
         await _audioPlayer.setUrl(url);
       }
 
+      // Update duration after loading
+      _duration = _audioPlayer.duration ?? Duration.zero;
+      durationNotifier.value = _duration;
+
       if (_volumeNormalization) {
         _applyVolumeNormalization();
       }
@@ -686,7 +793,7 @@ class MusicPlayerProvider extends ChangeNotifier {
         song.title,
         song.artist,
         song.albumArt,
-        _audioPlayer.duration ?? Duration.zero,
+        _duration,
       );
 
       // Now start playback - notification will be visible
@@ -761,6 +868,11 @@ class MusicPlayerProvider extends ChangeNotifier {
   bool isInQueue(SongModel song) => _queue.any((s) => s.id == song.id);
 
   Future<void> playNext() async {
+    // CRITICAL FIX: Prevent concurrent next operations
+    if (_isSwappingPlayer) {
+      debugPrint('⚠️ Player swap in progress, skipping playNext');
+      return;
+    }
     await _playNextWithSmartAutoplay();
   }
 
